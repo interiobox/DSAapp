@@ -6,13 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ChatChannel {
-  id: number;
+export interface ChatChannelMember {
+  userId: number;
   name: string;
   /** @nullable */
-  description: string | null;
-  createdBy: number;
-  createdAt: Date;
-  memberCount: number;
-  joined: boolean;
+  username: string | null;
+  role: string;
+  joinedAt: Date;
 }

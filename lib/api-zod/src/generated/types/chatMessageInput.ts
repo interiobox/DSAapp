@@ -7,6 +7,9 @@
  */
 
 export interface ChatMessageInput {
-  /** @minLength 1 */
-  content: string;
+  content?: string;
+  attachmentPath?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
+  attachmentContentType?: string;
 }

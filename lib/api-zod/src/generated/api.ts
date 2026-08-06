@@ -846,7 +846,9 @@ export const ListChatChannelsResponseItem = zod.object({
   "name": zod.string(),
   "description": zod.string().nullable(),
   "createdBy": zod.number(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "memberCount": zod.number(),
+  "joined": zod.boolean()
 })
 export const ListChatChannelsResponse = zod.array(ListChatChannelsResponseItem)
 
@@ -867,8 +869,72 @@ export const CreateChatChannelResponse = zod.object({
   "name": zod.string(),
   "description": zod.string().nullable(),
   "createdBy": zod.number(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "memberCount": zod.number(),
+  "joined": zod.boolean()
 })
+
+
+/**
+ * @summary Join a team chat channel
+ */
+
+
+
+export const JoinChatChannelParams = zod.object({
+  "channelId": zod.coerce.number().min(1)
+})
+
+export const JoinChatChannelResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "createdBy": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "memberCount": zod.number(),
+  "joined": zod.boolean()
+})
+
+
+/**
+ * @summary Leave a team chat channel
+ */
+
+
+
+export const LeaveChatChannelParams = zod.object({
+  "channelId": zod.coerce.number().min(1)
+})
+
+export const LeaveChatChannelResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "createdBy": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "memberCount": zod.number(),
+  "joined": zod.boolean()
+})
+
+
+/**
+ * @summary List members of a team chat channel
+ */
+
+
+
+export const ListChatChannelMembersParams = zod.object({
+  "channelId": zod.coerce.number().min(1)
+})
+
+export const ListChatChannelMembersResponseItem = zod.object({
+  "userId": zod.number(),
+  "name": zod.string(),
+  "username": zod.string().nullable(),
+  "role": zod.string(),
+  "joinedAt": zod.coerce.date()
+})
+export const ListChatChannelMembersResponse = zod.array(ListChatChannelMembersResponseItem)
 
 
 /**
@@ -887,6 +953,10 @@ export const ListChatMessagesResponseItem = zod.object({
   "authorId": zod.number(),
   "authorName": zod.string(),
   "content": zod.string(),
+  "attachmentPath": zod.string().nullable(),
+  "attachmentName": zod.string().nullable(),
+  "attachmentSize": zod.number().nullable(),
+  "attachmentContentType": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListChatMessagesResponse = zod.array(ListChatMessagesResponseItem)
@@ -902,11 +972,12 @@ export const CreateChatMessageParams = zod.object({
   "channelId": zod.coerce.number().min(1)
 })
 
-
-
-
 export const CreateChatMessageBody = zod.object({
-  "content": zod.string().min(1)
+  "content": zod.string().optional(),
+  "attachmentPath": zod.string().optional(),
+  "attachmentName": zod.string().optional(),
+  "attachmentSize": zod.number().optional(),
+  "attachmentContentType": zod.string().optional()
 })
 
 export const CreateChatMessageResponse = zod.object({
@@ -915,6 +986,10 @@ export const CreateChatMessageResponse = zod.object({
   "authorId": zod.number(),
   "authorName": zod.string(),
   "content": zod.string(),
+  "attachmentPath": zod.string().nullable(),
+  "attachmentName": zod.string().nullable(),
+  "attachmentSize": zod.number().nullable(),
+  "attachmentContentType": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
 

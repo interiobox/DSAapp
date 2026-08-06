@@ -12,5 +12,13 @@ export interface ChatMessage {
   authorId: number;
   authorName: string;
   content: string;
+  /** @nullable */
+  attachmentPath: string | null;
+  /** @nullable */
+  attachmentName: string | null;
+  /** @nullable */
+  attachmentSize: number | null;
+  /** @nullable */
+  attachmentContentType: string | null;
   createdAt: Date;
 }

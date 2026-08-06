@@ -24,6 +24,7 @@ export * from './category';
 export * from './categoryInput';
 export * from './chatChannel';
 export * from './chatChannelInput';
+export * from './chatChannelMember';
 export * from './chatMessage';
 export * from './chatMessageInput';
 export * from './checklistItemUpdate';

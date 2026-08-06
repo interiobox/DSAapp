@@ -32,6 +32,7 @@ import type {
   CategoryInput,
   ChatChannel,
   ChatChannelInput,
+  ChatChannelMember,
   ChatMessage,
   ChatMessageInput,
   ChecklistItemUpdate,
@@ -2920,6 +2921,225 @@ export const useCreateChatChannel = <TError = ErrorType<void>,
       > => {
       return useMutation(getCreateChatChannelMutationOptions(options));
     }
+
+export const getJoinChatChannelUrl = (channelId: number,) => {
+
+
+
+
+  return `/api/chat/channels/${channelId}/join`
+}
+
+/**
+ * @summary Join a team chat channel
+ */
+export const joinChatChannel = async (channelId: number, options?: Parameters<typeof customFetch>[1]): Promise<ChatChannel> => {
+
+  return customFetch<ChatChannel>(getJoinChatChannelUrl(channelId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getJoinChatChannelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinChatChannel>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinChatChannel>>, TError,{channelId: number}, TContext> => {
+
+const mutationKey = ['joinChatChannel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinChatChannel>>, {channelId: number}> = (props) => {
+          const {channelId} = props ?? {};
+
+          return  joinChatChannel(channelId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinChatChannelMutationResult = NonNullable<Awaited<ReturnType<typeof joinChatChannel>>>
+
+    export type JoinChatChannelMutationError = ErrorType<void>
+
+    /**
+ * @summary Join a team chat channel
+ */
+export const useJoinChatChannel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinChatChannel>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof joinChatChannel>>,
+        TError,
+        {channelId: number},
+        TContext
+      > => {
+      return useMutation(getJoinChatChannelMutationOptions(options));
+    }
+
+export const getLeaveChatChannelUrl = (channelId: number,) => {
+
+
+
+
+  return `/api/chat/channels/${channelId}/leave`
+}
+
+/**
+ * @summary Leave a team chat channel
+ */
+export const leaveChatChannel = async (channelId: number, options?: Parameters<typeof customFetch>[1]): Promise<ChatChannel> => {
+
+  return customFetch<ChatChannel>(getLeaveChatChannelUrl(channelId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLeaveChatChannelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveChatChannel>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveChatChannel>>, TError,{channelId: number}, TContext> => {
+
+const mutationKey = ['leaveChatChannel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveChatChannel>>, {channelId: number}> = (props) => {
+          const {channelId} = props ?? {};
+
+          return  leaveChatChannel(channelId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveChatChannelMutationResult = NonNullable<Awaited<ReturnType<typeof leaveChatChannel>>>
+
+    export type LeaveChatChannelMutationError = ErrorType<void>
+
+    /**
+ * @summary Leave a team chat channel
+ */
+export const useLeaveChatChannel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveChatChannel>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof leaveChatChannel>>,
+        TError,
+        {channelId: number},
+        TContext
+      > => {
+      return useMutation(getLeaveChatChannelMutationOptions(options));
+    }
+
+export const getListChatChannelMembersUrl = (channelId: number,) => {
+
+
+
+
+  return `/api/chat/channels/${channelId}/members`
+}
+
+/**
+ * @summary List members of a team chat channel
+ */
+export const listChatChannelMembers = async (channelId: number, options?: Parameters<typeof customFetch>[1]): Promise<ChatChannelMember[]> => {
+
+  return customFetch<ChatChannelMember[]>(getListChatChannelMembersUrl(channelId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListChatChannelMembersQueryKey = (channelId: number,) => {
+    return [
+    `/api/chat/channels/${channelId}/members`
+    ] as const;
+    }
+
+
+export const getListChatChannelMembersQueryOptions = <TData = Awaited<ReturnType<typeof listChatChannelMembers>>, TError = ErrorType<void>>(channelId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatChannelMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListChatChannelMembersQueryKey(channelId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listChatChannelMembers>>> = ({ signal }) => listChatChannelMembers(channelId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: channelId !== null && channelId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listChatChannelMembers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListChatChannelMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listChatChannelMembers>>>
+export type ListChatChannelMembersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List members of a team chat channel
+ */
+
+export function useListChatChannelMembers<TData = Awaited<ReturnType<typeof listChatChannelMembers>>, TError = ErrorType<void>>(
+ channelId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChatChannelMembers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListChatChannelMembersQueryOptions(channelId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListChatMessagesUrl = (channelId: number,) => {
 

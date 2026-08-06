@@ -706,6 +706,8 @@ export interface ChatChannel {
   description: string | null;
   createdBy: number;
   createdAt: string;
+  memberCount: number;
+  joined: boolean;
 }
 
 export interface ChatChannelInput {
@@ -720,12 +722,32 @@ export interface ChatMessage {
   authorId: number;
   authorName: string;
   content: string;
+  /** @nullable */
+  attachmentPath: string | null;
+  /** @nullable */
+  attachmentName: string | null;
+  /** @nullable */
+  attachmentSize: number | null;
+  /** @nullable */
+  attachmentContentType: string | null;
   createdAt: string;
 }
 
 export interface ChatMessageInput {
-  /** @minLength 1 */
-  content: string;
+  content?: string;
+  attachmentPath?: string;
+  attachmentName?: string;
+  attachmentSize?: number;
+  attachmentContentType?: string;
+}
+
+export interface ChatChannelMember {
+  userId: number;
+  name: string;
+  /** @nullable */
+  username: string | null;
+  role: string;
+  joinedAt: string;
 }
 
 export interface ErrorEnvelope {

@@ -716,6 +716,73 @@ paths:
                 $ref: "#/components/schemas/ChatChannel"
         "409":
           description: A channel with this name already exists
+  /chat/channels/{channelId}/join:
+    post:
+      operationId: joinChatChannel
+      tags: [chat]
+      summary: Join a team chat channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Joined chat channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatChannel"
+        "404":
+          description: Chat channel not found
+  /chat/channels/{channelId}/leave:
+    post:
+      operationId: leaveChatChannel
+      tags: [chat]
+      summary: Leave a team chat channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Left chat channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatChannel"
+        "400":
+          description: Channel creator cannot leave their channel
+        "404":
+          description: Chat channel not found
+  /chat/channels/{channelId}/members:
+    get:
+      operationId: listChatChannelMembers
+      tags: [chat]
+      summary: List members of a team chat channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Chat channel members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatChannelMember"
+        "404":
+          description: Chat channel not found
   /chat/channels/{channelId}/messages:
     get:
       operationId: listChatMessages
@@ -2447,7 +2514,11 @@ components:
         createdAt:
           type: string
           format: date-time
-      required: [id, name, description, createdBy, createdAt]
+        memberCount:
+          type: number
+        joined:
+          type: boolean
+      required: [id, name, description, createdBy, createdAt, memberCount, joined]
     ChatChannelInput:
       type: object
       properties:
@@ -2470,17 +2541,47 @@ components:
           type: string
         content:
           type: string
+        attachmentPath:
+          type: ["string", "null"]
+        attachmentName:
+          type: ["string", "null"]
+        attachmentSize:
+          type: ["number", "null"]
+        attachmentContentType:
+          type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
-      required: [id, channelId, authorId, authorName, content, createdAt]
+      required: [id, channelId, authorId, authorName, content, attachmentPath, attachmentName, attachmentSize, attachmentContentType, createdAt]
     ChatMessageInput:
       type: object
       properties:
         content:
           type: string
-          minLength: 1
-      required: [content]
+        attachmentPath:
+          type: string
+        attachmentName:
+          type: string
+        attachmentSize:
+          type: number
+        attachmentContentType:
+          type: string
+      required: []
+    ChatChannelMember:
+      type: object
+      properties:
+        userId:
+          type: number
+        name:
+          type: string
+        username:
+          type: ["string", "null"]
+        role:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+      required: [userId, name, username, role, joinedAt]
     ErrorEnvelope:
       type: object
       properties:
