@@ -243,12 +243,7 @@ export default function Assignments() {
                                 <p className="whitespace-normal break-words font-medium leading-snug text-foreground hover:text-primary">{drawing.title}</p>
                                 <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-muted-foreground">
                                   <span className="font-medium text-foreground/80">Project:</span> {drawing.projectName}
-                                  <span className="mx-1">·</span>
-                                  <span className="capitalize">{drawing.discipline}</span>
-                                  <span className="mx-1">·</span>
-                                  {drawing.drawingNumber} · Rev {drawing.revision}
                                 </p>
-                                <p className="mt-2 text-[11px] font-medium text-primary">Open drawing details →</p>
                               </button>
                               <div className="min-w-0">
                                 <div className="mb-2 flex items-center justify-between gap-2">
