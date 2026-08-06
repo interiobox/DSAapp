@@ -2684,7 +2684,16 @@ components:
         channelType:
           type: string
           enum: [channel, direct]
-      required: [id, name, description, createdBy, createdAt, memberCount, joined, unreadCount, channelType]
+        lastMessageContent:
+          type: ["string", "null"]
+        lastMessageAttachmentName:
+          type: ["string", "null"]
+        lastMessageAuthorName:
+          type: ["string", "null"]
+        lastMessageAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, name, description, createdBy, createdAt, memberCount, joined, unreadCount, channelType, lastMessageContent, lastMessageAttachmentName, lastMessageAuthorName, lastMessageAt]
     ChatChannelInput:
       type: object
       properties:

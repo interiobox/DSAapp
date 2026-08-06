@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  ArrowLeft,
   Bell,
+  ChevronRight,
   Download,
   Edit3,
   FileText,
@@ -51,6 +53,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import { MentionTextarea } from "@/components/MentionTextarea"
 import { useToast } from "@/hooks/use-toast"
 import { cn, formatTime, formatDate } from "@/lib/utils"
@@ -58,6 +61,37 @@ import { Link } from "wouter"
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"
+}
+
+function conversationName(channel: ChatChannel) {
+  if (channel.channelType === "direct") {
+    return channel.description?.replace("Direct conversation with ", "") || "Direct message"
+  }
+  return channel.name
+}
+
+function conversationPreview(channel: ChatChannel, currentUserName?: string) {
+  if (channel.lastMessageContent) {
+    const author = channel.lastMessageAuthorName === currentUserName ? "You" : channel.lastMessageAuthorName
+    return author ? `${author}: ${channel.lastMessageContent}` : channel.lastMessageContent
+  }
+  if (channel.lastMessageAttachmentName) return `File: ${channel.lastMessageAttachmentName}`
+  if (channel.description) return channel.description
+  return channel.channelType === "direct" ? "Private conversation" : "No messages yet"
+}
+
+function conversationTime(dateString: string) {
+  return formatTime(dateString).replace(" IST", "")
+}
+
+function conversationAvatarClass(channel: ChatChannel) {
+  const palette = [
+    "bg-[#dce9ff] text-[#245bb3]",
+    "bg-[#dff4e9] text-[#197044]",
+    "bg-[#fff0d9] text-[#9a5c08]",
+    "bg-[#f1e3ff] text-[#7443a8]",
+  ]
+  return palette[channel.id % palette.length]
 }
 
 function formatMessageTime(dateString: string) {
@@ -87,11 +121,15 @@ export default function ChatPage() {
     const value = new URLSearchParams(window.location.search).get("channelId")
     return value ? Number(value) : null
   })
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(() => {
+    return Boolean(new URLSearchParams(window.location.search).get("channelId"))
+  })
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false)
   const [isDirectDialogOpen, setIsDirectDialogOpen] = useState(false)
   const [channelName, setChannelName] = useState("")
   const [channelDescription, setChannelDescription] = useState("")
   const [message, setMessage] = useState("")
+  const [conversationSearch, setConversationSearch] = useState("")
   const [messageSearch, setMessageSearch] = useState("")
   const [isGlobalSearch, setIsGlobalSearch] = useState(false)
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
@@ -125,6 +163,7 @@ export default function ChatPage() {
     },
   })
   const messages = messagesQuery.data ?? []
+  const activeLatestMessage = messages[messages.length - 1]
   const globalSearchQuery = useSearchChatMessages(
     { query: messageSearch.trim() || "x" },
     { query: { enabled: isGlobalSearch && messageSearch.trim().length > 0, queryKey: ["/api/chat/search", messageSearch.trim()] } },
@@ -152,6 +191,16 @@ export default function ChatPage() {
   const leaveChannel = useLeaveChatChannel()
   const markChannelRead = useMarkChatChannelRead()
   const usersQuery = useListUsers({ query: { enabled: isDirectDialogOpen, queryKey: getListUsersQueryKey() } })
+  const visibleChannels = useMemo(() => {
+    const query = conversationSearch.trim().toLocaleLowerCase()
+    return [...channels]
+      .filter((channel) => `${conversationName(channel)} ${channel.description ?? ""}`.toLocaleLowerCase().includes(query))
+      .sort((a, b) => {
+        const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : new Date(a.createdAt).getTime()
+        const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : new Date(b.createdAt).getTime()
+        return bTime - aTime
+      })
+  }, [channels, conversationSearch])
 
   useEffect(() => {
     if (!selectedChannelId && channels[0]) setSelectedChannelId(channels[0].id)
@@ -242,6 +291,7 @@ export default function ChatPage() {
         setIsDirectDialogOpen(false)
         setDirectUserId(null)
         setSelectedChannelId(channel.id)
+        setIsMobileChatOpen(true)
         queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
       },
       onError: (error) => toast({ title: "Direct chat could not be opened", description: error instanceof Error ? error.message : "Please try again." }),
@@ -325,6 +375,7 @@ export default function ChatPage() {
         setChannelDescription("")
         setIsChannelDialogOpen(false)
         setSelectedChannelId(created.id)
+        setIsMobileChatOpen(true)
         queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
       },
       onError: (error) => toast({ title: "Channel could not be created", description: error instanceof Error ? error.message : "Please try another name." }),
@@ -380,88 +431,125 @@ export default function ChatPage() {
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="hidden w-[220px] shrink-0 flex-col border-r bg-[#eef0f3] sm:w-[250px] lg:flex">
-          <div className="flex items-center justify-between border-b px-4 py-3">
+        <aside className={cn("w-full shrink-0 flex-col border-r bg-white md:w-[290px] lg:w-[320px]", isMobileChatOpen ? "hidden md:flex" : "flex")}>
+          <div className="border-b px-4 py-4">
+            <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Workspace</p>
-              <p className="mt-1 truncate text-sm font-semibold">Design Sense Architects</p>
+                <p className="text-lg font-bold tracking-tight text-foreground">Chats</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{channels.length} conversation{channels.length === 1 ? "" : "s"}</p>
             </div>
-             <div className="flex items-center gap-1">
-               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsDirectDialogOpen(true)} title="Start a direct message" data-testid="button-create-direct-chat">
-                 <MessageSquare className="h-4 w-4" />
-               </Button>
-               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsChannelDialogOpen(true)} title="Create channel" data-testid="button-create-channel">
-                 <Plus className="h-4 w-4" />
-               </Button>
-             </div>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => setIsDirectDialogOpen(true)} title="Start a direct message" data-testid="button-create-direct-chat">
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => setIsChannelDialogOpen(true)} title="Create channel" data-testid="button-create-channel">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="relative mt-4">
+              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                aria-label="Search conversations"
+                placeholder="Search conversations"
+                value={conversationSearch}
+                onChange={(event) => setConversationSearch(event.target.value)}
+                className="h-9 rounded-lg border-0 bg-[#f1f3f5] pl-9 pr-8 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-primary/30"
+                data-testid="input-search-conversations"
+              />
+              {conversationSearch && (
+                <button type="button" aria-label="Clear conversation search" onClick={() => setConversationSearch("")} className="absolute right-2 top-2 rounded-sm text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
           <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-5 p-3">
-              <section>
-                <div className="mb-2 flex items-center justify-between px-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Channels</p>
-                  <span className="font-mono text-[10px] text-muted-foreground">{channels.length}</span>
+            <div className="p-2">
+                <div className="mb-1 flex items-center gap-2 px-3 py-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">All conversations</p>
                 </div>
-                <div className="space-y-0.5">
+                <div>
                   {channelsQuery.isLoading ? (
-                    <div className="space-y-2 px-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-4/5" /><Skeleton className="h-8 w-11/12" /></div>
-                  ) : channels.length ? channels.map((channel) => (
+                    <div className="space-y-1 px-1"><Skeleton className="h-[72px] w-full" /><Skeleton className="h-[72px] w-full" /><Skeleton className="h-[72px] w-full" /></div>
+                  ) : visibleChannels.length ? visibleChannels.map((channel) => (
                     <button
                       key={channel.id}
                       type="button"
-                      onClick={() => setSelectedChannelId(channel.id)}
-                      className={cn("flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors", activeChannel?.id === channel.id ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/70 hover:text-foreground")}
+                      onClick={() => {
+                        setSelectedChannelId(channel.id)
+                        setIsMobileChatOpen(true)
+                      }}
+                      className={cn("group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors", activeChannel?.id === channel.id ? "bg-[#eaf2ff] text-foreground" : "hover:bg-[#f5f7fa]")}
                       data-testid={`button-channel-${channel.id}`}
                     >
-                       {channel.channelType === "direct" ? <MessageSquare className={cn("h-4 w-4 shrink-0", activeChannel?.id === channel.id ? "text-primary" : "text-muted-foreground/70")} /> : <Hash className={cn("h-4 w-4 shrink-0", activeChannel?.id === channel.id ? "text-primary" : "text-muted-foreground/70")} />}
-                       <span className="min-w-0 flex-1 truncate">{channel.channelType === "direct" ? channel.description?.replace("Direct conversation with ", "") || "Direct message" : channel.name}</span>
-                       {channel.unreadCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">{channel.unreadCount > 99 ? "99+" : channel.unreadCount}</span>}
+                       <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", conversationAvatarClass(channel))}>
+                         {channel.channelType === "direct" ? <MessageSquare className="h-5 w-5" /> : <Hash className="h-5 w-5" />}
+                       </div>
+                       <div className="min-w-0 flex-1">
+                         <div className="flex items-center justify-between gap-2">
+                           <span className="truncate text-sm font-semibold">{conversationName(channel)}</span>
+                            <span className={cn("shrink-0 text-[10px]", channel.unreadCount > 0 ? "font-semibold text-primary" : "text-muted-foreground")}>{channel.lastMessageAt ? conversationTime(channel.lastMessageAt) : channel.unreadCount > 0 ? "New" : " "}</span>
+                         </div>
+                         <div className="mt-1 flex items-center gap-2">
+                            <span className={cn("min-w-0 flex-1 truncate text-xs", channel.unreadCount > 0 ? "font-medium text-foreground/80" : "text-muted-foreground")}>{conversationPreview(channel, user?.name)}</span>
+                           {channel.unreadCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">{channel.unreadCount > 99 ? "99+" : channel.unreadCount}</span>}
+                         </div>
+                       </div>
+                       <ChevronRight className={cn("h-4 w-4 shrink-0 text-muted-foreground/0 transition-opacity group-hover:text-muted-foreground/50", activeChannel?.id === channel.id && "text-primary/40")} />
                     </button>
                   )) : (
-                    <p className="px-2 text-xs text-muted-foreground">No channels yet.</p>
+                    <div className="px-4 py-10 text-center">
+                      <Search className="mx-auto h-6 w-6 text-muted-foreground/50" />
+                      <p className="mt-2 text-xs font-medium">No conversations found</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">Try another name or create a new channel.</p>
+                    </div>
                   )}
                 </div>
-              </section>
-              <section className="rounded-lg border border-primary/10 bg-primary/[0.04] p-3">
-                <p className="text-xs font-semibold text-foreground">Make space for the work</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Use channels for decisions, handover notes, and quick site coordination.</p>
-              </section>
+                <div className="mx-2 mt-5 rounded-xl border border-primary/10 bg-primary/[0.04] p-3">
+                  <p className="text-xs font-semibold text-foreground">Keep work moving</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Use channels for decisions, handover notes, and quick site coordination.</p>
+                </div>
             </div>
           </ScrollArea>
           <div className="border-t px-3 py-3">
-            <div className="flex items-center gap-2 rounded-md bg-white/70 px-2 py-2">
-              <Avatar className="h-7 w-7 rounded-md">
-                <AvatarFallback className="rounded-md bg-primary text-[10px] text-primary-foreground">{initials(user?.name || user?.username || "User")}</AvatarFallback>
+            <div className="flex items-center gap-2 rounded-xl bg-[#f5f7fa] px-3 py-2.5">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary text-[10px] text-primary-foreground">{initials(user?.name || user?.username || "User")}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold">{user?.name || user?.username}</p>
-                <p className="text-[10px] text-emerald-700">Active now</p>
+                <p className="text-[10px] text-emerald-700">Available</p>
               </div>
-              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground/70" />
             </div>
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col bg-white">
+        <main className={cn("min-w-0 flex-1 flex-col bg-white", isMobileChatOpen ? "flex" : "hidden md:flex")}>
           <div className="flex flex-none flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             {activeChannel ? (
               <>
                 <div className="min-w-0">
                   <div className="mb-2 flex gap-1 overflow-x-auto lg:hidden">
-                    {channels.map((channel) => (
+                     {channels.map((channel) => (
                       <button
                         key={channel.id}
                         type="button"
                         onClick={() => setSelectedChannelId(channel.id)}
                         className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium", activeChannel.id === channel.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}
                       >
-                        #{channel.name}
+                         {channel.channelType === "direct" ? conversationName(channel) : `#${channel.name}`}
                       </button>
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Hash className="h-5 w-5 text-primary" />
-                    <h2 className="truncate text-base font-bold">{activeChannel.name}</h2>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full md:hidden" onClick={() => setIsMobileChatOpen(false)} aria-label="Back to conversations" data-testid="button-back-to-chat-list">
+                       <ArrowLeft className="h-4 w-4" />
+                     </Button>
+                     {activeChannel.channelType === "direct" ? <MessageSquare className="h-5 w-5 text-primary" /> : <Hash className="h-5 w-5 text-primary" />}
+                     <h2 className="truncate text-base font-bold">{conversationName(activeChannel)}</h2>
                       {!activeChannel.joined && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Not joined</span>}
                   </div>
                   <p className="mt-1 truncate pl-7 text-xs text-muted-foreground">{activeChannel.description || "A place for the team to talk."}</p>
@@ -536,7 +624,7 @@ export default function ChatPage() {
                 <div className="space-y-1">
                   <div className="mb-6 border-b pb-5">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Hash className="h-6 w-6" /></div>
-                    <h3 className="mt-3 text-xl font-bold">Welcome to #{activeChannel.name}</h3>
+                     <h3 className="mt-3 text-xl font-bold">Welcome to {activeChannel.channelType === "direct" ? conversationName(activeChannel) : `#${activeChannel.name}`}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{activeChannel.description || "This is the beginning of this channel."}</p>
                   </div>
                   {messageSearch && (
@@ -574,7 +662,7 @@ export default function ChatPage() {
                 <div className="flex min-h-[360px] flex-col justify-end">
                   <div className="mb-4 border-b pb-5">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Hash className="h-6 w-6" /></div>
-                    <h3 className="mt-3 text-xl font-bold">Welcome to #{activeChannel.name}</h3>
+                     <h3 className="mt-3 text-xl font-bold">Welcome to {activeChannel.channelType === "direct" ? conversationName(activeChannel) : `#${activeChannel.name}`}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{activeChannel.description || "Start the conversation with your team."}</p>
                   </div>
                   <div ref={messageEndRef} />
@@ -606,7 +694,7 @@ export default function ChatPage() {
                       submitMessage()
                     }
                   }}
-                  placeholder={activeChannel ? `Message #${activeChannel.name}` : "Select a channel"}
+                   placeholder={activeChannel ? `Message ${activeChannel.channelType === "direct" ? conversationName(activeChannel) : `#${activeChannel.name}`}` : "Select a channel"}
                    disabled={!activeChannel?.joined || createMessage.isPending || isUploading}
                   rows={1}
                   className="max-h-32 min-h-9 resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:ring-0"
@@ -657,30 +745,59 @@ export default function ChatPage() {
         </aside>
       </div>
 
-      <Dialog open={isChannelDialogOpen} onOpenChange={setIsChannelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create a channel</DialogTitle>
-            <DialogDescription>Give your team a focused place to discuss a project or workstream.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="chat-channel-name">Channel name</Label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="chat-channel-name" value={channelName} onChange={(event) => setChannelName(event.target.value)} placeholder="project-updates" className="pl-9" data-testid="input-chat-channel-name" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="chat-channel-description">Description <span className="font-normal text-muted-foreground">(optional)</span></Label>
-              <Input id="chat-channel-description" value={channelDescription} onChange={(event) => setChannelDescription(event.target.value)} placeholder="What is this channel for?" data-testid="input-chat-channel-description" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsChannelDialogOpen(false)} data-testid="button-cancel-chat-channel"><X className="mr-2 h-4 w-4" />Cancel</Button>
-            <Button onClick={submitChannel} disabled={createChannel.isPending} data-testid="button-submit-chat-channel">{createChannel.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Create channel</Button>
-          </DialogFooter>
-        </DialogContent>
+       <Dialog open={isChannelDialogOpen} onOpenChange={(open) => {
+         setIsChannelDialogOpen(open)
+         if (!open) {
+           setChannelName("")
+           setChannelDescription("")
+         }
+       }}>
+         <DialogContent className="overflow-hidden p-0 sm:max-w-[520px]">
+           <DialogHeader className="border-b bg-[#eef5ff] px-6 py-6">
+             <div className="flex items-start gap-4">
+               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                 <Hash className="h-6 w-6" />
+               </div>
+               <div className="min-w-0">
+                 <DialogTitle className="text-xl tracking-tight">Create a new channel</DialogTitle>
+                 <DialogDescription className="mt-1.5 max-w-sm text-sm leading-relaxed">Bring the right people together for a project, site update, or design review.</DialogDescription>
+               </div>
+             </div>
+           </DialogHeader>
+           <div className="space-y-5 px-6 py-6">
+             <div className="space-y-2">
+               <div className="flex items-center justify-between gap-3">
+                 <Label htmlFor="chat-channel-name">Channel name</Label>
+                 <span className="text-[10px] text-muted-foreground">Required</span>
+               </div>
+               <div className="relative">
+                 <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                 <Input id="chat-channel-name" value={channelName} onChange={(event) => setChannelName(event.target.value)} placeholder="project-updates" className="h-11 pl-9" autoFocus data-testid="input-chat-channel-name" />
+               </div>
+               <p className="text-[11px] text-muted-foreground">Use a short, recognizable name your team can find quickly.</p>
+             </div>
+             <div className="space-y-2">
+               <div className="flex items-center justify-between gap-3">
+                 <Label htmlFor="chat-channel-description">Description</Label>
+                 <span className="text-[10px] text-muted-foreground">Optional</span>
+               </div>
+               <Textarea id="chat-channel-description" value={channelDescription} onChange={(event) => setChannelDescription(event.target.value)} placeholder="What will your team coordinate here?" rows={3} className="resize-none" data-testid="input-chat-channel-description" />
+             </div>
+             <div className="flex items-center gap-3 rounded-xl border bg-[#f8fafc] px-3 py-3">
+               <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", channelName.trim() ? "bg-[#dce9ff] text-[#245bb3]" : "bg-muted text-muted-foreground")}>
+                 <Hash className="h-5 w-5" />
+               </div>
+               <div className="min-w-0">
+                 <p className="truncate text-sm font-semibold">{channelName.trim() || "your-channel"}</p>
+                 <p className="truncate text-xs text-muted-foreground">{channelDescription.trim() || "A focused space for your team"}</p>
+               </div>
+             </div>
+           </div>
+           <DialogFooter className="border-t bg-[#fbfcfe] px-6 py-4">
+             <Button variant="outline" onClick={() => setIsChannelDialogOpen(false)} data-testid="button-cancel-chat-channel">Cancel</Button>
+             <Button onClick={submitChannel} disabled={createChannel.isPending || !channelName.trim()} data-testid="button-submit-chat-channel">{createChannel.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}Create channel</Button>
+           </DialogFooter>
+         </DialogContent>
       </Dialog>
       <Dialog open={isDirectDialogOpen} onOpenChange={setIsDirectDialogOpen}>
         <DialogContent>

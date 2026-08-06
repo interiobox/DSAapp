@@ -850,7 +850,11 @@ export const ListChatChannelsResponseItem = zod.object({
   "memberCount": zod.number(),
   "joined": zod.boolean(),
   "unreadCount": zod.number(),
-  "channelType": zod.enum(['channel', 'direct'])
+  "channelType": zod.enum(['channel', 'direct']),
+  "lastMessageContent": zod.string().nullable(),
+  "lastMessageAttachmentName": zod.string().nullable(),
+  "lastMessageAuthorName": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable()
 })
 export const ListChatChannelsResponse = zod.array(ListChatChannelsResponseItem)
 
@@ -875,7 +879,11 @@ export const CreateChatChannelResponse = zod.object({
   "memberCount": zod.number(),
   "joined": zod.boolean(),
   "unreadCount": zod.number(),
-  "channelType": zod.enum(['channel', 'direct'])
+  "channelType": zod.enum(['channel', 'direct']),
+  "lastMessageContent": zod.string().nullable(),
+  "lastMessageAttachmentName": zod.string().nullable(),
+  "lastMessageAuthorName": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable()
 })
 
 
@@ -898,7 +906,11 @@ export const JoinChatChannelResponse = zod.object({
   "memberCount": zod.number(),
   "joined": zod.boolean(),
   "unreadCount": zod.number(),
-  "channelType": zod.enum(['channel', 'direct'])
+  "channelType": zod.enum(['channel', 'direct']),
+  "lastMessageContent": zod.string().nullable(),
+  "lastMessageAttachmentName": zod.string().nullable(),
+  "lastMessageAuthorName": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable()
 })
 
 
@@ -921,7 +933,11 @@ export const LeaveChatChannelResponse = zod.object({
   "memberCount": zod.number(),
   "joined": zod.boolean(),
   "unreadCount": zod.number(),
-  "channelType": zod.enum(['channel', 'direct'])
+  "channelType": zod.enum(['channel', 'direct']),
+  "lastMessageContent": zod.string().nullable(),
+  "lastMessageAttachmentName": zod.string().nullable(),
+  "lastMessageAuthorName": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable()
 })
 
 
@@ -1169,7 +1185,11 @@ export const CreateChatDirectMessageResponse = zod.object({
   "memberCount": zod.number(),
   "joined": zod.boolean(),
   "unreadCount": zod.number(),
-  "channelType": zod.enum(['channel', 'direct'])
+  "channelType": zod.enum(['channel', 'direct']),
+  "lastMessageContent": zod.string().nullable(),
+  "lastMessageAttachmentName": zod.string().nullable(),
+  "lastMessageAuthorName": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date().nullable()
 })
 
 

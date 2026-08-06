@@ -81,6 +81,15 @@ async function getChannelSummary(channelId: number, userId: number) {
   const [{ count }] = await db.select({ count: sql<number>`count(*)` })
     .from(chatChannelMembersTable)
     .where(eq(chatChannelMembersTable.channelId, channelId));
+  const [lastMessage] = await db.select({
+    content: chatMessagesTable.content,
+    attachmentName: chatMessagesTable.attachmentName,
+    authorName: chatMessagesTable.authorName,
+    createdAt: chatMessagesTable.createdAt,
+  }).from(chatMessagesTable)
+    .where(eq(chatMessagesTable.channelId, channelId))
+    .orderBy(desc(chatMessagesTable.createdAt), desc(chatMessagesTable.id))
+    .limit(1);
   const [membership] = await db.select({
     id: chatChannelMembersTable.id,
     lastReadAt: chatChannelMembersTable.lastReadAt,
@@ -96,6 +105,10 @@ async function getChannelSummary(channelId: number, userId: number) {
     memberCount: Number(count),
     joined: Boolean(membership),
     unreadCount: membership ? await getUnreadCount(channelId, userId, membership.lastReadAt) : 0,
+    lastMessageContent: membership ? lastMessage?.content || null : null,
+    lastMessageAttachmentName: membership ? lastMessage?.attachmentName || null : null,
+    lastMessageAuthorName: membership ? lastMessage?.authorName || null : null,
+    lastMessageAt: membership ? lastMessage?.createdAt?.toISOString() ?? null : null,
   };
 }
 

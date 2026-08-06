@@ -18,4 +18,12 @@ export interface ChatChannel {
   joined: boolean;
   unreadCount: number;
   channelType: ChatChannelChannelType;
+  /** @nullable */
+  lastMessageContent: string | null;
+  /** @nullable */
+  lastMessageAttachmentName: string | null;
+  /** @nullable */
+  lastMessageAuthorName: string | null;
+  /** @nullable */
+  lastMessageAt: Date | null;
 }

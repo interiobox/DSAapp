@@ -20,3 +20,9 @@ Notifications are grouped and filterable by chat, mentions, unread, and other wo
 **Why:** Chat activity should be actionable without making the notification center noisy or repeatedly alerting for old records.
 
 **How to apply:** Use persisted notification records as the source of truth, keep chat links channel-specific, and deduplicate in-app alerts by notification ID during polling.
+
+Conversation lists now use server-provided latest-message summaries and recent-activity ordering; mobile chat opens from a conversation home into a dedicated room view with back navigation.
+
+**Why:** A chat surface should behave like an integrated messenger on both desktop and mobile, while preview data must remain private for non-members.
+
+**How to apply:** Keep latest-message fields membership-gated, preserve polling for freshness, and retain the desktop split view alongside the mobile list/detail transition.
