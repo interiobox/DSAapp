@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import {
   chatChannelMembersTable,
   chatChannelsTable,
@@ -12,6 +12,7 @@ import {
   CreateChatChannelBody,
   CreateChatMessageBody,
   CreateChatDirectMessageBody,
+  DeleteChatChannelParams,
   DeleteChatMessageParams,
   JoinChatChannelParams,
   LeaveChatChannelParams,
@@ -26,9 +27,11 @@ import {
 } from "@workspace/api-zod";
 import { requireCurrentUser } from "../lib/portalAuth";
 import { notifyChatChannelMembers, notifyMentions, safelyNotify } from "../lib/notifications";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
 const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024;
+const objectStorageService = new ObjectStorageService();
 
 async function ensureDefaultChannels(userId: number) {
   const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(chatChannelsTable);
@@ -214,6 +217,62 @@ router.post("/chat/channels/:channelId/leave", async (req, res): Promise<void> =
     eq(chatChannelMembersTable.userId, user.id),
   ));
   res.json(await getChannelSummary(params.data.channelId, user.id));
+});
+
+router.delete("/chat/channels/:channelId", async (req, res): Promise<void> => {
+  const params = DeleteChatChannelParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const user = requireCurrentUser(req);
+  const [channel] = await db.select({
+    id: chatChannelsTable.id,
+    channelType: chatChannelsTable.channelType,
+  })
+    .from(chatChannelsTable)
+    .where(eq(chatChannelsTable.id, params.data.channelId))
+    .limit(1);
+  if (!channel) {
+    res.status(404).json({ error: "Chat channel not found" });
+    return;
+  }
+  if (channel.channelType === "direct") {
+    res.status(400).json({ error: "Direct conversations cannot be deleted as groups" });
+    return;
+  }
+  if (!(await isChannelMember(channel.id, user.id))) {
+    res.status(403).json({ error: "Join this channel to delete it" });
+    return;
+  }
+  const [{ count }] = await db.select({ count: sql<number>`count(*)` })
+    .from(chatChannelMembersTable)
+    .where(eq(chatChannelMembersTable.channelId, channel.id));
+  if (Number(count) !== 1) {
+    res.status(400).json({ error: "Only a group with one member can be deleted" });
+    return;
+  }
+  const messageRows = await db.select({
+    id: chatMessagesTable.id,
+    attachmentPath: chatMessagesTable.attachmentPath,
+  })
+    .from(chatMessagesTable)
+    .where(eq(chatMessagesTable.channelId, channel.id));
+  for (const message of messageRows) {
+    if (message.attachmentPath) {
+      await objectStorageService.deleteObjectEntity(message.attachmentPath);
+    }
+  }
+  if (messageRows.length) {
+    await db.delete(chatMessageReactionsTable).where(inArray(
+      chatMessageReactionsTable.messageId,
+      messageRows.map((message) => message.id),
+    ));
+  }
+  await db.delete(chatMessagesTable).where(eq(chatMessagesTable.channelId, channel.id));
+  await db.delete(chatChannelMembersTable).where(eq(chatChannelMembersTable.channelId, channel.id));
+  await db.delete(chatChannelsTable).where(eq(chatChannelsTable.id, channel.id));
+  res.status(204).send();
 });
 
 router.get("/chat/channels/:channelId/members", async (req, res): Promise<void> => {

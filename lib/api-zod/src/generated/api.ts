@@ -942,6 +942,19 @@ export const LeaveChatChannelResponse = zod.object({
 
 
 /**
+ * @summary Delete a chat channel when the signed-in user is its only member
+ */
+
+
+
+export const DeleteChatChannelParams = zod.object({
+  "channelId": zod.coerce.number().min(1)
+})
+
+export const DeleteChatChannelResponse = zod.void()
+
+
+/**
  * @summary List members of a team chat channel
  */
 

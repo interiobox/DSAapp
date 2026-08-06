@@ -33,6 +33,7 @@ import {
   useCreateChatChannel,
   useCreateChatDirectMessage,
   useCreateChatMessage,
+  useDeleteChatChannel,
   useDeleteChatMessage,
   useJoinChatChannel,
   useLeaveChatChannel,
@@ -133,6 +134,7 @@ export default function ChatPage() {
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
+  const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false)
   const [channelName, setChannelName] = useState("")
   const [channelDescription, setChannelDescription] = useState("")
   const [message, setMessage] = useState("")
@@ -164,6 +166,7 @@ export default function ChatPage() {
   const activeChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels.find((channel) => channel.joined) ?? null
   const activeChannelId = activeChannel?.id ?? 0
   const canLeaveActiveChannel = Boolean(activeChannel && (activeChannel.channelType === "direct" || activeChannel.createdBy !== user?.id))
+  const canDeleteActiveGroup = Boolean(activeChannel?.channelType === "channel" && activeChannel.joined && activeChannel.memberCount === 1)
   const messagesQuery = useListChatMessages(activeChannelId, {
     query: {
       enabled: Boolean(activeChannel),
@@ -193,6 +196,7 @@ export default function ChatPage() {
   const createChannel = useCreateChatChannel()
   const createDirectMessage = useCreateChatDirectMessage()
   const createMessage = useCreateChatMessage()
+  const deleteChannel = useDeleteChatChannel()
   const updateMessage = useUpdateChatMessage()
   const deleteMessage = useDeleteChatMessage()
   const toggleReaction = useToggleChatMessageReaction()
@@ -399,6 +403,41 @@ export default function ChatPage() {
     })
   }
 
+  function requestDeleteActiveGroup() {
+    if (!canDeleteActiveGroup) return
+    setIsDeleteGroupDialogOpen(true)
+  }
+
+  function deleteActiveGroup() {
+    if (!activeChannel || !canDeleteActiveGroup) return
+    const deletedChannelId = activeChannel.id
+    const deletedChannelName = activeChannel.name
+    deleteChannel.mutate({ channelId: deletedChannelId }, {
+      onSuccess: () => {
+        queryClient.setQueryData<ChatChannel[]>(
+          getListChatChannelsQueryKey(),
+          (current) => (current ?? []).filter((channel) => channel.id !== deletedChannelId),
+        )
+        queryClient.removeQueries({ queryKey: getListChatMessagesQueryKey(deletedChannelId), exact: true })
+        setIsDeleteGroupDialogOpen(false)
+        setIsMembersDialogOpen(false)
+        setIsLeaveDialogOpen(false)
+        setSelectedChannelId(null)
+        setIsMobileChatOpen(false)
+        setAttachment(null)
+        setReplyTo(null)
+        setMessageSearch("")
+        setIsMessageSearchOpen(false)
+        queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
+        toast({ title: `Deleted #${deletedChannelName}` })
+      },
+      onError: (error) => toast({
+        title: "Group could not be deleted",
+        description: error instanceof Error ? error.message : "Only a group with one member can be deleted.",
+      }),
+    })
+  }
+
   function submitChannel() {
     const name = channelName.trim()
     if (!name) {
@@ -568,6 +607,11 @@ export default function ChatPage() {
                              <LogIn className="h-4 w-4" /> Join conversation
                            </button>
                          )}
+                          {canDeleteActiveGroup && (
+                            <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10" onClick={requestDeleteActiveGroup} disabled={deleteChannel.isPending} data-testid="button-delete-chat-group">
+                              <Trash2 className="h-4 w-4" /> Delete group
+                            </button>
+                          )}
                        </PopoverContent>
                      </Popover>
                    {activeChannel.joined ? (
@@ -861,6 +905,23 @@ export default function ChatPage() {
              <Button variant="destructive" onClick={leaveActiveChannel} disabled={leaveChannel.isPending}>
                {leaveChannel.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
                Leave conversation
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
+       <Dialog open={isDeleteGroupDialogOpen} onOpenChange={setIsDeleteGroupDialogOpen}>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>Delete this group?</DialogTitle>
+             <DialogDescription>
+               This group has only you as a member. Deleting it permanently removes the group, its messages, and its attachments from the chat system.
+             </DialogDescription>
+           </DialogHeader>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setIsDeleteGroupDialogOpen(false)} disabled={deleteChannel.isPending}>Cancel</Button>
+             <Button variant="destructive" onClick={deleteActiveGroup} disabled={deleteChannel.isPending}>
+               {deleteChannel.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+               Delete group
              </Button>
            </DialogFooter>
          </DialogContent>

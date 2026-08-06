@@ -21,6 +21,12 @@ Direct rooms may be left by either participant, including the room creator; reop
 
 **How to apply:** Keep the creator restriction only for regular channels, clear the departed room from the active client state, and restore membership when the deterministic direct room is opened again.
 
+Permanent group deletion is available only to a regular group with exactly one member; the server enforces this independently of the UI and removes related chat records and private attachments.
+
+**Why:** A one-member group has no other participant whose history or access could be disrupted, while UI-only guards are not sufficient for destructive operations.
+
+**How to apply:** Keep the delete action hidden unless the member count is one, require membership server-side, exclude direct rooms, and invalidate the active conversation after deletion.
+
 Notifications are grouped and filterable by chat, mentions, unread, and other workflow events; per-item read/unread toggles coexist with mark-all-read, and polling alerts only announce newly observed unread records.
 
 **Why:** Chat activity should be actionable without making the notification center noisy or repeatedly alerting for old records.

@@ -760,6 +760,27 @@ paths:
           description: Channel creator cannot leave their channel
         "404":
           description: Chat channel not found
+  /chat/channels/{channelId}:
+    delete:
+      operationId: deleteChatChannel
+      tags: [chat]
+      summary: Delete a chat channel when the signed-in user is its only member
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "204":
+          description: Chat channel deleted
+        "400":
+          description: Only a single-member group can be deleted
+        "403":
+          description: The signed-in user cannot delete this chat channel
+        "404":
+          description: Chat channel not found
   /chat/channels/{channelId}/members:
     get:
       operationId: listChatChannelMembers

@@ -3070,6 +3070,77 @@ export const useLeaveChatChannel = <TError = ErrorType<void>,
       return useMutation(getLeaveChatChannelMutationOptions(options));
     }
 
+export const getDeleteChatChannelUrl = (channelId: number,) => {
+
+
+
+
+  return `/api/chat/channels/${channelId}`
+}
+
+/**
+ * @summary Delete a chat channel when the signed-in user is its only member
+ */
+export const deleteChatChannel = async (channelId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteChatChannelUrl(channelId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteChatChannelMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteChatChannel>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteChatChannel>>, TError,{channelId: number}, TContext> => {
+
+const mutationKey = ['deleteChatChannel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteChatChannel>>, {channelId: number}> = (props) => {
+          const {channelId} = props ?? {};
+
+          return  deleteChatChannel(channelId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteChatChannelMutationResult = NonNullable<Awaited<ReturnType<typeof deleteChatChannel>>>
+
+    export type DeleteChatChannelMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a chat channel when the signed-in user is its only member
+ */
+export const useDeleteChatChannel = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteChatChannel>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteChatChannel>>,
+        TError,
+        {channelId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteChatChannelMutationOptions(options));
+    }
+
 export const getListChatChannelMembersUrl = (channelId: number,) => {
 
 
