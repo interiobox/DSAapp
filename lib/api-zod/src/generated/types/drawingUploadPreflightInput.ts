@@ -6,17 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface DrawingUploadInput {
-  /** @minLength 1 */
-  filePath: string;
+export interface DrawingUploadPreflightInput {
   /** @minLength 1 */
   fileName: string;
   /** @minimum 1 */
   fileSize: number;
-  /** @minLength 1 */
-  contentType: string;
   /** @pattern ^[a-fA-F0-9]{64}$ */
   sha256: string;
-  /** @minLength 1 */
-  uploadedBy: string;
 }

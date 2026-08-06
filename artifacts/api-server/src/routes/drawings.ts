@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { createHash } from "crypto";
 import { db, drawingActivityTable, drawingCommentsTable, drawingUploadsTable, drawingsTable, usersTable } from "@workspace/db";
 import {
   CreateDrawingBody,
@@ -26,6 +27,8 @@ import {
   DeleteDrawingCommentParams,
   UpdateDrawingAssignmentBody,
   UpdateDrawingAssignmentResponse,
+  PreflightDrawingUploadBody,
+  PreflightDrawingUploadResponse,
 } from "@workspace/api-zod";
 import { addActivity, getIdParam, listDrawingRows, toDateString } from "../lib/drawings";
 import { ObjectStorageService } from "../lib/objectStorage";
@@ -35,6 +38,32 @@ import { getDriveFileId, isDriveFilePath, moveDriveFileToDrawingFolder, normaliz
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+async function hashObjectPath(filePath: string): Promise<string> {
+  const file = await objectStorageService.getObjectEntityFile(filePath);
+  const hash = createHash("sha256");
+  return new Promise((resolve, reject) => {
+    const stream = file.createReadStream();
+    stream.on("data", (chunk: Buffer) => hash.update(chunk));
+    stream.on("end", () => resolve(hash.digest("hex")));
+    stream.on("error", reject);
+  });
+}
+
+function revisionRank(value: string | null | undefined): number | null {
+  const normalized = value?.trim().toUpperCase();
+  if (!normalized || normalized === "—" || normalized === "-") return null;
+  if (/^\d+$/.test(normalized)) return Number(normalized);
+  if (/^[A-Z]+$/.test(normalized)) {
+    return normalized.split("").reduce((rank, character) => rank * 26 + character.charCodeAt(0) - 64, 0);
+  }
+  return null;
+}
+
+function revisionFromFilename(fileName: string): string | null {
+  const match = fileName.match(/(?:revision|rev)[\s._-]*([a-z0-9]+)|(?:^|[_\s.-])r([0-9]+)(?:[_\s.-]|$)/i);
+  return match?.[1] ?? match?.[2] ?? null;
+}
 
 function currentUserId(req: Request) {
   return String(requireCurrentUser(req).id);
@@ -301,6 +330,57 @@ router.get("/drawings/:id/uploads", async (req, res): Promise<void> => {
   res.json(ListDrawingUploadsResponse.parse(uploads));
 });
 
+router.post("/drawings/:id/uploads/preflight", async (req, res): Promise<void> => {
+  const params = GetDrawingParams.safeParse(req.params);
+  const body = PreflightDrawingUploadBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [drawing] = await db.select({
+    id: drawingsTable.id,
+    revision: drawingsTable.revision,
+  }).from(drawingsTable).where(and(eq(drawingsTable.id, params.data.id), isNull(drawingsTable.deletedAt))).limit(1);
+  if (!drawing) {
+    res.status(404).json({ error: "Drawing not found" });
+    return;
+  }
+  const uploads = await db.select({
+    id: drawingUploadsTable.id,
+    fileName: drawingUploadsTable.fileName,
+    fileSize: drawingUploadsTable.fileSize,
+    sha256: drawingUploadsTable.sha256,
+    deletedAt: drawingUploadsTable.deletedAt,
+    uploadedAt: drawingUploadsTable.uploadedAt,
+  }).from(drawingUploadsTable)
+    .where(eq(drawingUploadsTable.drawingId, drawing.id))
+    .orderBy(desc(drawingUploadsTable.uploadedAt));
+  const activeUploads = uploads.filter((upload) => upload.deletedAt === null);
+  const exactDuplicate = activeUploads.find((upload) => upload.sha256?.toLowerCase() === body.data.sha256.toLowerCase());
+  const recycledMatch = uploads.some((upload) => upload.deletedAt !== null && upload.sha256?.toLowerCase() === body.data.sha256.toLowerCase());
+  const sameFilename = activeUploads.some((upload) => upload.fileName.toLowerCase() === body.data.fileName.toLowerCase());
+  const incomingRevision = revisionRank(revisionFromFilename(body.data.fileName));
+  const currentRevision = revisionRank(drawing.revision);
+  const olderRevision = incomingRevision !== null && currentRevision !== null && incomingRevision < currentRevision;
+  const warnings = [
+    ...(exactDuplicate ? ["This file is already recorded as an active version of this drawing."] : []),
+    ...(sameFilename && !exactDuplicate ? ["A version with this filename already exists for this drawing."] : []),
+    ...(olderRevision ? [`The filename appears to contain revision ${revisionFromFilename(body.data.fileName)}, older than the current drawing revision ${drawing.revision}.`] : []),
+  ];
+  res.json(PreflightDrawingUploadResponse.parse({
+    exactDuplicate: Boolean(exactDuplicate),
+    sameFilename,
+    olderRevision,
+    recycledMatch,
+    warnings,
+    existingUpload: exactDuplicate ?? null,
+  }));
+});
+
 router.post("/drawings/:id/uploads", async (req, res): Promise<void> => {
   const params = GetDrawingParams.safeParse(req.params);
   const body = RecordDrawingUploadBody.safeParse(req.body);
@@ -317,9 +397,20 @@ router.post("/drawings/:id/uploads", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Drawing not found" });
     return;
   }
+  const storedSha256 = body.data.filePath.startsWith("/objects/")
+    ? await hashObjectPath(body.data.filePath)
+    : body.data.sha256;
+  if (storedSha256.toLowerCase() !== body.data.sha256.toLowerCase()) {
+    if (body.data.filePath.startsWith("/objects/")) {
+      await objectStorageService.deleteObjectEntity(body.data.filePath);
+    }
+    res.status(422).json({ error: "The stored file checksum does not match the upload checksum" });
+    return;
+  }
   const [{ id }] = await db.insert(drawingUploadsTable).values({
     drawingId: drawing.id,
     ...body.data,
+    sha256: storedSha256,
     uploadedBy: currentUserName(req),
   }).$returningId();
   const [upload] = await db.select().from(drawingUploadsTable).where(eq(drawingUploadsTable.id, id)).limit(1);

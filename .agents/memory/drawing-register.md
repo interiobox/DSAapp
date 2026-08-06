@@ -115,6 +115,12 @@ The Drawing Library’s advanced search should remain server-backed and cover dr
 
 **How to apply:** Extend the existing drawing query rather than adding a parallel search index, treat active upload history as drawing versions, preserve the existing preview component for each selected version, and use the persistent drawing activity stream for audit history.
 
+Upload integrity uses SHA-256 fingerprints. Exact duplicates and same-name files are checked only against active upload versions; a matching upload in the recycle bin is allowed as a new active version and is explained to the user.
+
+**Why:** Reusing a previously recycled file is a legitimate recovery/version workflow, while active duplicate detection prevents accidental repeated versions.
+
+**How to apply:** Keep recycled records in the lookup only to identify `recycledMatch`, never let them block upload, and verify stored bytes against the submitted checksum before recording a new version.
+
 Chat message search is local to the selected channel and searches both message content and author names; the company brand is Design Sense Architects while Drawing Library remains the product/workspace name.
 
 **Why:** Teams need quick retrieval within active conversations, and the company identity should be visible without replacing the established drawing-library product vocabulary.

@@ -59,6 +59,8 @@ import type {
   DrawingUpdate,
   DrawingUpload,
   DrawingUploadInput,
+  DrawingUploadPreflight,
+  DrawingUploadPreflightInput,
   ErrorEnvelope,
   GetMyAttendanceMonthParams,
   GetMyAttendanceParams,
@@ -6139,6 +6141,78 @@ export const useRecordDrawingUpload = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRecordDrawingUploadMutationOptions(options));
+    }
+
+export const getPreflightDrawingUploadUrl = (id: number,) => {
+
+
+
+
+  return `/api/drawings/${id}/uploads/preflight`
+}
+
+/**
+ * @summary Check a drawing file for duplicates and revision risks
+ */
+export const preflightDrawingUpload = async (id: number,
+    drawingUploadPreflightInput: DrawingUploadPreflightInput, options?: Parameters<typeof customFetch>[1]): Promise<DrawingUploadPreflight> => {
+
+  return customFetch<DrawingUploadPreflight>(getPreflightDrawingUploadUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(drawingUploadPreflightInput)
+  }
+);}
+
+
+
+
+
+export const getPreflightDrawingUploadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof preflightDrawingUpload>>, TError,{id: number;data: BodyType<DrawingUploadPreflightInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof preflightDrawingUpload>>, TError,{id: number;data: BodyType<DrawingUploadPreflightInput>}, TContext> => {
+
+const mutationKey = ['preflightDrawingUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof preflightDrawingUpload>>, {id: number;data: BodyType<DrawingUploadPreflightInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  preflightDrawingUpload(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreflightDrawingUploadMutationResult = NonNullable<Awaited<ReturnType<typeof preflightDrawingUpload>>>
+    export type PreflightDrawingUploadMutationBody = BodyType<DrawingUploadPreflightInput>
+    export type PreflightDrawingUploadMutationError = ErrorType<void>
+
+    /**
+ * @summary Check a drawing file for duplicates and revision risks
+ */
+export const usePreflightDrawingUpload = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof preflightDrawingUpload>>, TError,{id: number;data: BodyType<DrawingUploadPreflightInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof preflightDrawingUpload>>,
+        TError,
+        {id: number;data: BodyType<DrawingUploadPreflightInput>},
+        TContext
+      > => {
+      return useMutation(getPreflightDrawingUploadMutationOptions(options));
     }
 
 export const getDeleteDrawingUploadUrl = (id: number,

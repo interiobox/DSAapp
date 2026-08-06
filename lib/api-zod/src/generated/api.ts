@@ -1825,6 +1825,7 @@ export const ListDrawingUploadsResponseItem = zod.object({
   "fileName": zod.string(),
   "fileSize": zod.number(),
   "contentType": zod.string(),
+  "sha256": zod.string().nullable(),
   "uploadedBy": zod.string(),
   "uploadedAt": zod.coerce.date()
 })
@@ -1845,6 +1846,7 @@ export const RecordDrawingUploadParams = zod.object({
 
 
 
+export const recordDrawingUploadBodySha256RegExp = new RegExp('^[a-fA-F0-9]{64}$');
 
 
 
@@ -1853,6 +1855,7 @@ export const RecordDrawingUploadBody = zod.object({
   "fileName": zod.string().min(1),
   "fileSize": zod.number().min(1),
   "contentType": zod.string().min(1),
+  "sha256": zod.string().regex(recordDrawingUploadBodySha256RegExp),
   "uploadedBy": zod.string().min(1)
 })
 
@@ -1863,8 +1866,46 @@ export const RecordDrawingUploadResponse = zod.object({
   "fileName": zod.string(),
   "fileSize": zod.number(),
   "contentType": zod.string(),
+  "sha256": zod.string().nullable(),
   "uploadedBy": zod.string(),
   "uploadedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Check a drawing file for duplicates and revision risks
+ */
+
+
+
+export const PreflightDrawingUploadParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+
+
+export const preflightDrawingUploadBodySha256RegExp = new RegExp('^[a-fA-F0-9]{64}$');
+
+
+export const PreflightDrawingUploadBody = zod.object({
+  "fileName": zod.string().min(1),
+  "fileSize": zod.number().min(1),
+  "sha256": zod.string().regex(preflightDrawingUploadBodySha256RegExp)
+})
+
+export const PreflightDrawingUploadResponse = zod.object({
+  "exactDuplicate": zod.boolean(),
+  "sameFilename": zod.boolean(),
+  "olderRevision": zod.boolean(),
+  "recycledMatch": zod.boolean(),
+  "warnings": zod.array(zod.string()),
+  "existingUpload": zod.object({
+  "id": zod.number(),
+  "fileName": zod.string(),
+  "fileSize": zod.number(),
+  "sha256": zod.string().nullable(),
+  "uploadedAt": zod.coerce.date()
+}).nullable()
 })
 
 
@@ -2154,6 +2195,7 @@ export const UploadDrawingToDriveResponse = zod.object({
   "fileName": zod.string(),
   "fileSize": zod.number(),
   "contentType": zod.string(),
+  "sha256": zod.string().nullable(),
   "uploadedBy": zod.string(),
   "uploadedAt": zod.coerce.date()
 })

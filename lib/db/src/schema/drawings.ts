@@ -67,6 +67,7 @@ export const drawingUploadsTable = mysqlTable("drawing_uploads", {
   fileName: text("file_name").notNull(),
   fileSize: int("file_size").notNull(),
   contentType: text("content_type").notNull(),
+  sha256: varchar("sha256", { length: 64 }),
   uploadedBy: text("uploaded_by").notNull(),
   deletedAt: datetime("deleted_at", { mode: "date" }),
   uploadedAt: datetime("uploaded_at", { mode: "date" }).default(sql`(now())`).notNull(),

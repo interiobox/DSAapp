@@ -1522,6 +1522,28 @@ paths:
                 $ref: "#/components/schemas/DrawingUpload"
         "404":
           description: Drawing not found
+  /drawings/{id}/uploads/preflight:
+    post:
+      operationId: preflightDrawingUpload
+      tags: [drawings]
+      summary: Check a drawing file for duplicates and revision risks
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingUploadPreflightInput"
+      responses:
+        "200":
+          description: Upload integrity and duplicate findings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawingUploadPreflight"
+        "404":
+          description: Drawing not found
   /drawings/{id}/uploads/{uploadId}:
     delete:
       operationId: deleteDrawingUpload
@@ -2570,12 +2592,14 @@ components:
           type: number
         contentType:
           type: string
+        sha256:
+          type: ["string", "null"]
         uploadedBy:
           type: string
         uploadedAt:
           type: string
           format: date-time
-      required: [id, drawingId, filePath, fileName, fileSize, contentType, uploadedBy, uploadedAt]
+      required: [id, drawingId, filePath, fileName, fileSize, contentType, sha256, uploadedBy, uploadedAt]
     DrawingUploadInput:
       type: object
       properties:
@@ -2591,10 +2615,57 @@ components:
         contentType:
           type: string
           minLength: 1
+        sha256:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
         uploadedBy:
           type: string
           minLength: 1
-      required: [filePath, fileName, fileSize, contentType, uploadedBy]
+      required: [filePath, fileName, fileSize, contentType, sha256, uploadedBy]
+    DrawingUploadPreflightInput:
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        fileSize:
+          type: number
+          minimum: 1
+        sha256:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
+      required: [fileName, fileSize, sha256]
+    DrawingUploadPreflight:
+      type: object
+      properties:
+        exactDuplicate:
+          type: boolean
+        sameFilename:
+          type: boolean
+        olderRevision:
+          type: boolean
+        recycledMatch:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+        existingUpload:
+          type: ["object", "null"]
+          properties:
+            id:
+              type: number
+            fileName:
+              type: string
+            fileSize:
+              type: number
+            sha256:
+              type: ["string", "null"]
+            uploadedAt:
+              type: string
+              format: date-time
+          required: [id, fileName, fileSize, sha256, uploadedAt]
+      required: [exactDuplicate, sameFilename, olderRevision, recycledMatch, warnings, existingUpload]
     DrawingUploadUpdate:
       type: object
       properties:

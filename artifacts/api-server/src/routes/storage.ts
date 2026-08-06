@@ -1,4 +1,5 @@
 import { Readable } from 'stream';
+import { createHash } from "crypto";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -41,6 +42,7 @@ router.post(
     }
     const fileName = decodeURIComponent(String(req.headers["x-file-name"] ?? "drawing-file"));
     const contentType = String(req.headers["x-file-content-type"] ?? "application/octet-stream");
+    const sha256 = createHash("sha256").update(req.body).digest("hex");
     const driveFile = await uploadDrawingToGoogleDrive({
       projectName: drawing.projectName,
         category: drawing.discipline,
@@ -62,6 +64,7 @@ router.post(
       fileName,
       fileSize: req.body.length,
       contentType,
+      sha256,
       uploadedBy: user.name,
     }).$returningId();
     const [upload] = await db.select().from(drawingUploadsTable).where(eq(drawingUploadsTable.id, id)).limit(1);

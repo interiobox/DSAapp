@@ -3,7 +3,7 @@ import { useRoute, Link, useLocation } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, CheckCircle, Clock, Send, Archive, Trash2, Calendar, FileText, Upload, Download, Loader2, History, MessageSquare, Pencil, FolderKanban, ShieldCheck, Eye } from "lucide-react"
 
-import { useGetDrawing, useUpdateDrawing, useDeleteDrawing, useListProjects, useListCategories, useGetStorageStatus, useListDrawingActivity, getGetDrawingQueryKey, getListDrawingActivityQueryKey, getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react"
+import { useGetDrawing, useUpdateDrawing, useDeleteDrawing, useListProjects, useListCategories, useGetStorageStatus, useListDrawingActivity, usePreflightDrawingUpload, getGetDrawingQueryKey, getListDrawingActivityQueryKey, getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react"
 import type { Activity } from "@workspace/api-client-react"
 import type { DrawingStatus } from "@workspace/api-client-react"
 
@@ -27,6 +27,7 @@ type DrawingUpload = {
   fileName: string
   fileSize: number
   contentType: string
+  sha256: string | null
   uploadedBy: string
   uploadedAt: string
 }
@@ -65,6 +66,7 @@ export default function DrawingDetail() {
 
   const updateDrawing = useUpdateDrawing()
   const deleteDrawing = useDeleteDrawing()
+  const preflightUpload = usePreflightDrawingUpload()
   const { data: projects, isLoading: projectsLoading } = useListProjects()
   const [isUploading, setIsUploading] = React.useState(false)
   const [deletingUploadId, setDeletingUploadId] = React.useState<number | null>(null)
@@ -201,6 +203,26 @@ export default function DrawingDetail() {
 
     setIsUploading(true)
     try {
+      const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer())
+      const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+      const preflight = await preflightUpload.mutateAsync({
+        id,
+        data: {
+          fileName: file.name,
+          fileSize: file.size,
+          sha256,
+        },
+      })
+      if (preflight.warnings.length > 0) {
+        const shouldContinue = window.confirm(
+          `${preflight.warnings.join("\n")}\n\nContinue uploading this file anyway?`,
+        )
+        if (!shouldContinue) return
+      }
+      const recycledDescription = preflight.recycledMatch
+        ? "A matching file was previously moved to the recycle bin, so this upload will be recorded as a new active version."
+        : undefined
+
       if (storageStatus?.connected) {
         const driveResponse = await fetch(`/api/storage/drawings/${id}/drive-upload`, {
           method: "POST",
@@ -219,7 +241,7 @@ export default function DrawingDetail() {
         queryClient.invalidateQueries({ queryKey: getGetDrawingQueryKey(id) })
         queryClient.invalidateQueries({ queryKey: getListDrawingsQueryKey() })
         queryClient.invalidateQueries({ queryKey: getListActivityQueryKey() })
-        toast({ title: "Drawing file uploaded to Google Drive", description: `${file.name} is organized under its project and drawing folders.` })
+         toast({ title: "Drawing file uploaded to Google Drive", description: recycledDescription ?? `${file.name} is organized under its project and drawing folders.` })
         return
       }
 
@@ -256,6 +278,7 @@ export default function DrawingDetail() {
           fileName: file.name,
           fileSize: file.size,
           contentType: file.type || "application/octet-stream",
+          sha256,
            uploadedBy: currentUserName,
         }),
       })
@@ -265,7 +288,7 @@ export default function DrawingDetail() {
       queryClient.invalidateQueries({ queryKey: getGetDrawingQueryKey(id) })
       queryClient.invalidateQueries({ queryKey: getListDrawingsQueryKey() })
       queryClient.invalidateQueries({ queryKey: getListActivityQueryKey() })
-       toast({ title: "Drawing file uploaded", description: `${file.name} recorded under ${currentUserName}.` })
+        toast({ title: "Drawing file uploaded", description: recycledDescription ?? `${file.name} recorded under ${currentUserName}.` })
     } catch (error) {
       toast({
         title: "Upload failed",
@@ -520,9 +543,13 @@ export default function DrawingDetail() {
                                 {upload.fileName}
                               </button>
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Uploaded by <span className="font-medium text-foreground">{upload.uploadedBy}</span> · {formatDate(upload.uploadedAt)} · {(upload.fileSize / 1024 / 1024).toFixed(2)} MB
+                             <p className="mt-1 text-xs text-muted-foreground">
+                               Uploaded by <span className="font-medium text-foreground">{upload.uploadedBy}</span> · {formatDate(upload.uploadedAt)} · {(upload.fileSize / 1024 / 1024).toFixed(2)} MB
                             </p>
+                             <p className="mt-1 flex items-center gap-1 text-[11px] text-emerald-700" title={upload.sha256 ? `SHA-256: ${upload.sha256}` : "Checksum unavailable for this legacy upload"}>
+                               <ShieldCheck className="h-3 w-3" />
+                               {upload.sha256 ? `Integrity verified · SHA-256 ${upload.sha256.slice(0, 12)}…` : "Legacy upload · checksum unavailable"}
+                             </p>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <span className="font-mono text-xs text-muted-foreground">{upload.contentType}</span>

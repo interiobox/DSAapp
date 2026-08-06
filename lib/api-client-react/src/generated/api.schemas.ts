@@ -615,6 +615,8 @@ export interface DrawingUpload {
   fileName: string;
   fileSize: number;
   contentType: string;
+  /** @nullable */
+  sha256: string | null;
   uploadedBy: string;
   uploadedAt: string;
 }
@@ -628,8 +630,41 @@ export interface DrawingUploadInput {
   fileSize: number;
   /** @minLength 1 */
   contentType: string;
+  /** @pattern ^[a-fA-F0-9]{64}$ */
+  sha256: string;
   /** @minLength 1 */
   uploadedBy: string;
+}
+
+export interface DrawingUploadPreflightInput {
+  /** @minLength 1 */
+  fileName: string;
+  /** @minimum 1 */
+  fileSize: number;
+  /** @pattern ^[a-fA-F0-9]{64}$ */
+  sha256: string;
+}
+
+/**
+ * @nullable
+ */
+export type DrawingUploadPreflightExistingUpload = {
+  id: number;
+  fileName: string;
+  fileSize: number;
+  /** @nullable */
+  sha256: string | null;
+  uploadedAt: string;
+} | null;
+
+export interface DrawingUploadPreflight {
+  exactDuplicate: boolean;
+  sameFilename: boolean;
+  olderRevision: boolean;
+  recycledMatch: boolean;
+  warnings: string[];
+  /** @nullable */
+  existingUpload: DrawingUploadPreflightExistingUpload;
 }
 
 export interface DrawingUploadUpdate {

@@ -6,15 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface DrawingUpload {
+/**
+ * @nullable
+ */
+export type DrawingUploadPreflightExistingUpload = {
   id: number;
-  drawingId: number;
-  filePath: string;
   fileName: string;
   fileSize: number;
-  contentType: string;
   /** @nullable */
   sha256: string | null;
-  uploadedBy: string;
   uploadedAt: Date;
-}
+} | null;
