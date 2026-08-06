@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1785922970805,
+      "tag": "0000_massive_the_initiative",
+      "breakpoints": true
+    }
+  ]
+}

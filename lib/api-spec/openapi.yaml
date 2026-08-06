@@ -1,0 +1,2442 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Architectural drawing management API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: drawings
+    description: Drawing library operations
+  - name: projects
+    description: Drawing project operations
+  - name: contacts
+    description: Shared contact, vendor, consultant, and project directory operations
+  - name: notes
+    description: Shared project notes and private personal notes
+  - name: users
+    description: Team directory operations
+  - name: auth
+    description: Portal username and password authentication
+  - name: admin
+    description: Administrator portal management
+  - name: dashboard
+    description: Dashboard and activity operations
+  - name: storage
+    description: Drawing file upload and serving operations
+  - name: checklists
+    description: Reusable project checklist operations
+  - name: chat
+    description: Team chat channels and messages
+  - name: notifications
+    description: Personal notifications and mentions
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in to the drawing portal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed-in portal user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalUser"
+        "401":
+          description: Invalid credentials
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the signed-in portal user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalUser"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Sign out of the drawing portal
+      responses:
+        "204":
+          description: Signed out
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /drawings:
+    get:
+      operationId: listDrawings
+      tags: [drawings]
+      summary: List architectural drawings
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/DrawingStatus"
+        - name: discipline
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/DrawingDiscipline"
+      responses:
+        "200":
+          description: Drawing library
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Drawing"
+    post:
+      operationId: createDrawing
+      tags: [drawings]
+      summary: Add a drawing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingInput"
+      responses:
+        "201":
+          description: Created drawing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Drawing"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List drawing projects
+      responses:
+        "200":
+          description: Drawing projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Add a drawing project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+  /projects/recycle-bin:
+    get:
+      operationId: listDeletedProjects
+      tags: [projects]
+      summary: List deleted projects in the recycle bin
+      responses:
+        "200":
+          description: Deleted projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "403":
+          description: Authentication required
+  /projects/{id}:
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Rename a drawing project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Project name is required
+        "403":
+          description: Administrator access required
+        "404":
+          description: Project not found
+        "409":
+          description: A project with this name already exists
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Move a project to the recycle bin
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Project moved to the recycle bin
+        "403":
+          description: Authentication required
+        "404":
+          description: Project not found
+  /projects/{id}/restore:
+    post:
+      operationId: restoreProject
+      tags: [projects]
+      summary: Restore a project from the recycle bin
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          description: Administrator access required
+        "404":
+          description: Project not found
+        "409":
+          description: An active project already uses this name
+  /recycle-bin:
+    get:
+      operationId: listRecycleBin
+      tags: [projects]
+      summary: List all deleted records in the recycle bin
+      responses:
+        "200":
+          description: Deleted records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecycleBinEntry"
+        "401":
+          description: Authentication required
+  /recycle-bin/{type}/{id}/restore:
+    post:
+      operationId: restoreRecycleBinEntry
+      tags: [projects]
+      summary: Restore a deleted record from the recycle bin
+      parameters:
+        - name:
+            type
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: number
+        "401":
+          description: Authentication required
+        "404":
+          description: Recycle-bin entry not found
+  /contacts:
+    get:
+      operationId: listContacts
+      tags: [contacts]
+      summary: List shared contacts
+      parameters:
+        - name: projectName
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Shared contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contact"
+    post:
+      operationId: createContact
+      tags: [contacts]
+      summary: Create a shared contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactInput"
+      responses:
+        "201":
+          description: Created contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+  /contacts/{id}:
+    patch:
+      operationId: updateContact
+      tags: [contacts]
+      summary: Update a shared contact
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactUpdate"
+      responses:
+        "200":
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    delete:
+      operationId: deleteContact
+      tags: [contacts]
+      summary: Delete a shared contact
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Contact deleted
+  /contacts/{id}/projects:
+    post:
+      operationId: addContactProject
+      tags: [contacts]
+      summary: Add a project association to a contact
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactProjectInput"
+      responses:
+        "200":
+          description: Contact with the new project association
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+  /contacts/{id}/projects/{projectId}:
+    delete:
+      operationId: removeContactProject
+      tags: [contacts]
+      summary: Remove a project association from a contact
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Contact without the removed project association
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+  /project-notes:
+    get:
+      operationId: listProjectNotes
+      tags: [projects]
+      summary: List shared notes for a project
+      parameters:
+        - name: projectName
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Shared project notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectNote"
+    post:
+      operationId: createProjectNote
+      tags: [projects]
+      summary: Add a shared project note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectNoteInput"
+      responses:
+        "201":
+          description: Created project note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectNote"
+  /project-notes/{id}:
+    patch:
+      operationId: updateProjectNote
+      tags: [projects]
+      summary: Update a shared project note
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectNoteUpdate"
+      responses:
+        "200":
+          description: Updated project note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectNote"
+    delete:
+      operationId: deleteProjectNote
+      tags: [projects]
+      summary: Delete a shared project note
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Project note deleted
+  /personal-notes:
+    get:
+      operationId: listPersonalNotes
+      tags: [notes]
+      summary: List the signed-in user's personal notes
+      responses:
+        "200":
+          description: Personal notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PersonalNote"
+    post:
+      operationId: createPersonalNote
+      tags: [notes]
+      summary: Create a personal note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonalNoteInput"
+      responses:
+        "201":
+          description: Created personal note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalNote"
+  /personal-notes/{id}:
+    patch:
+      operationId: updatePersonalNote
+      tags: [notes]
+      summary: Update one of the signed-in user's personal notes
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PersonalNoteUpdate"
+      responses:
+        "200":
+          description: Updated personal note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PersonalNote"
+    delete:
+      operationId: deletePersonalNote
+      tags: [notes]
+      summary: Delete one of the signed-in user's personal notes
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Personal note deleted
+  /checklist-templates:
+    get:
+      operationId: listChecklistTemplates
+      tags: [checklists]
+      summary: List reusable checklist templates
+      responses:
+        "200":
+          description: Checklist templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChecklistTemplate"
+    post:
+      operationId: createChecklistTemplate
+      tags: [checklists]
+      summary: Create a reusable checklist template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChecklistTemplateInput"
+      responses:
+        "201":
+          description: Created checklist template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistTemplate"
+        "409":
+          description: A template with this name already exists
+  /checklist-templates/{id}:
+    patch:
+      operationId: updateChecklistTemplate
+      tags: [checklists]
+      summary: Update a reusable checklist template
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChecklistTemplateInput"
+      responses:
+        "200":
+          description: Updated checklist template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistTemplate"
+        "404":
+          description: Checklist template not found
+    delete:
+      operationId: deleteChecklistTemplate
+      tags: [checklists]
+      summary: Delete a reusable checklist template
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted checklist template
+        "404":
+          description: Checklist template not found
+  /project-checklists:
+    get:
+      operationId: listProjectChecklists
+      tags: [checklists]
+      summary: List checklists applied to projects
+      parameters:
+        - name: projectName
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project checklists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectChecklist"
+    post:
+      operationId: applyChecklistTemplate
+      tags: [checklists]
+      summary: Apply a checklist template to a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectChecklistInput"
+      responses:
+        "201":
+          description: Applied project checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectChecklist"
+        "404":
+          description: Checklist template not found
+  /project-checklists/{id}:
+    delete:
+      operationId: deleteProjectChecklist
+      tags: [checklists]
+      summary: Remove a checklist from a project
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted project checklist
+        "404":
+          description: Project checklist not found
+  /project-checklists/{id}/items/{itemId}:
+    patch:
+      operationId: toggleProjectChecklistItem
+      tags: [checklists]
+      summary: Complete or reopen a project checklist item
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChecklistItemUpdate"
+      responses:
+        "200":
+          description: Updated project checklist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectChecklist"
+        "404":
+          description: Checklist item not found
+  /chat/channels:
+    get:
+      operationId: listChatChannels
+      tags: [chat]
+      summary: List team chat channels
+      responses:
+        "200":
+          description: Team chat channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatChannel"
+    post:
+      operationId: createChatChannel
+      tags: [chat]
+      summary: Create a team chat channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatChannelInput"
+      responses:
+        "201":
+          description: Created chat channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatChannel"
+        "409":
+          description: A channel with this name already exists
+  /chat/channels/{channelId}/messages:
+    get:
+      operationId: listChatMessages
+      tags: [chat]
+      summary: List messages in a chat channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+        "404":
+          description: Chat channel not found
+    post:
+      operationId: createChatMessage
+      tags: [chat]
+      summary: Post a message to a chat channel
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageInput"
+      responses:
+        "201":
+          description: Created chat message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "404":
+          description: Chat channel not found
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List team users
+      responses:
+        "200":
+          description: Team users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+  /attendance:
+    get:
+      operationId: listAttendance
+      tags: [attendance]
+      summary: List employee attendance for a date
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Employee attendance register
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceEntry"
+  /attendance/me:
+    get:
+      operationId: getMyAttendance
+      tags: [attendance]
+      summary: Get the signed-in employee's attendance for a date
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Signed-in employee attendance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceEntry"
+  /attendance/me/month:
+    get:
+      operationId: getMyAttendanceMonth
+      tags: [attendance]
+      summary: Get the signed-in employee's attendance for a month
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+      responses:
+        "200":
+          description: Signed-in employee monthly attendance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceEntry"
+        "400":
+          description: Invalid or future month
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /attendance/self-checkin:
+    post:
+      operationId: selfCheckinAttendance
+      tags: [attendance]
+      summary: Check in for the signed-in employee with location evidence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceSelfCheckinInput"
+      responses:
+        "201":
+          description: Self-check-in recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceEntry"
+        "400":
+          description: Invalid location evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Attendance is already recorded for the day
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /attendance/{employeeId}:
+    put:
+      operationId: recordAttendance
+      tags: [attendance]
+      summary: Correct an existing location-backed attendance check-in
+      parameters:
+        - name: employeeId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceInput"
+      responses:
+        "200":
+          description: Recorded attendance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttendanceEntry"
+        "400":
+          description: Invalid attendance record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Employee not found
+  /disciplines:
+    get:
+      operationId: listDisciplines
+      tags: [drawings]
+      summary: List drawing disciplines
+      responses:
+        "200":
+          description: Drawing disciplines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Discipline"
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [drawings]
+      summary: List drawing categories
+      responses:
+        "200":
+          description: Drawing categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [drawings]
+      summary: Add a drawing category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+  /categories/{id}:
+    patch:
+      operationId: updateCategory
+      tags: [drawings]
+      summary: Rename a drawing category
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      tags: [drawings]
+      summary: Delete a drawing category
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: List all portal users
+      responses:
+        "200":
+          description: Portal users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PortalUser"
+    post:
+      operationId: adminCreateUser
+      tags: [admin]
+      summary: Create a portal user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserInput"
+      responses:
+        "201":
+          description: Created portal user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalUser"
+  /admin/users/{id}:
+    patch:
+      operationId: adminUpdateUser
+      tags: [admin]
+      summary: Update a portal user
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdate"
+      responses:
+        "200":
+          description: Updated portal user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortalUser"
+    delete:
+      operationId: adminDeleteUser
+      tags: [admin]
+      summary: Delete a portal user
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Administrator access required
+  /admin/disciplines:
+    get:
+      operationId: adminListDisciplines
+      tags: [admin]
+      summary: List managed disciplines
+      responses:
+        "200":
+          description: Managed disciplines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Discipline"
+    post:
+      operationId: adminCreateDiscipline
+      tags: [admin]
+      summary: Add a drawing discipline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisciplineInput"
+      responses:
+        "201":
+          description: Created discipline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discipline"
+  /admin/disciplines/{id}:
+    patch:
+      operationId: adminUpdateDiscipline
+      tags: [admin]
+      summary: Rename a drawing discipline
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DisciplineInput"
+      responses:
+        "200":
+          description: Updated discipline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Discipline"
+    delete:
+      operationId: adminDeleteDiscipline
+      tags: [admin]
+      summary: Delete a drawing discipline
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+  /admin/activity:
+    get:
+      operationId: adminListActivity
+      tags: [admin]
+      summary: List complete portal activity
+      responses:
+        "200":
+          description: Complete portal activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+  /admin/personal-notes:
+    get:
+      operationId: adminListPersonalNotes
+      tags: [admin]
+      summary: List every user's personal notes
+      responses:
+        "200":
+          description: All personal notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PersonalNote"
+  /admin/google-drive:
+    get:
+      operationId: adminGetGoogleDriveStatus
+      tags: [admin]
+      summary: Get Google Drive storage status
+      responses:
+        "200":
+          description: Google Drive storage status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleDriveStatus"
+    post:
+      operationId: adminDisconnectGoogleDrive
+      tags: [admin]
+      summary: Disconnect Google Drive storage
+      responses:
+        "204":
+          description: Google Drive disconnected
+  /admin/google-drive/oauth/start:
+    get:
+      operationId: adminStartGoogleDriveOAuth
+      tags: [admin]
+      summary: Start Google Drive authorization
+      responses:
+        "302":
+          description: Redirect to Google authorization
+  /admin/google-drive/oauth/callback:
+    get:
+      operationId: adminCompleteGoogleDriveOAuth
+      tags: [admin]
+      summary: Complete Google Drive authorization
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect back to Admin
+  /drawings/{id}:
+    get:
+      operationId: getDrawing
+      tags: [drawings]
+      summary: Get a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Drawing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Drawing"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateDrawing
+      tags: [drawings]
+      summary: Update a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingUpdate"
+      responses:
+        "200":
+          description: Updated drawing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Drawing"
+    delete:
+      operationId: deleteDrawing
+      tags: [drawings]
+      summary: Delete a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Administrator access required
+  /drawings/{id}/assignment:
+    patch:
+      operationId: updateDrawingAssignment
+      tags: [drawings]
+      summary: Assign or unassign a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingAssignmentUpdate"
+      responses:
+        "200":
+          description: Updated drawing assignment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Drawing"
+        "404":
+          description: Drawing not found
+  /drawings/{id}/uploads:
+    get:
+      operationId: listDrawingUploads
+      tags: [drawings]
+      summary: List upload history for a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Upload history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrawingUpload"
+    post:
+      operationId: recordDrawingUpload
+      tags: [drawings]
+      summary: Record a completed drawing file upload
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingUploadInput"
+      responses:
+        "201":
+          description: Recorded upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawingUpload"
+        "404":
+          description: Drawing not found
+  /drawings/{id}/uploads/{uploadId}:
+    delete:
+      operationId: deleteDrawingUpload
+      tags: [drawings]
+      summary: Delete a drawing upload and its stored file
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Upload not found
+  /drawings/{id}/comments:
+    get:
+      operationId: listDrawingComments
+      tags: [drawings]
+      summary: List review comments for a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Review comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrawingComment"
+    post:
+      operationId: createDrawingComment
+      tags: [drawings]
+      summary: Leave a review comment on a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingCommentInput"
+      responses:
+        "201":
+          description: Created review comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawingComment"
+        "404":
+          description: Drawing not found
+  /drawings/{id}/comments/{commentId}:
+    patch:
+      operationId: updateDrawingComment
+      tags: [drawings]
+      summary: Edit a drawing review comment
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DrawingCommentUpdate"
+      responses:
+        "200":
+          description: Updated comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawingComment"
+        "404":
+          description: Comment not found
+    delete:
+      operationId: deleteDrawingComment
+      tags: [drawings]
+      summary: Delete a drawing review comment
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Comment not found
+  /dashboard:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get drawing dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /activity:
+    get:
+      operationId: listActivity
+      tags: [dashboard]
+      summary: List recent drawing activity
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for the signed-in user
+      responses:
+        "200":
+          description: Personal notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark one notification as read
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Read notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Notification not found
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "204":
+          description: Notifications marked as read
+  /storage/uploads/request-url:
+    post:
+      tags: [storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for a drawing file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/status:
+    get:
+      operationId: getStorageStatus
+      tags: [storage]
+      summary: Get active file storage status
+      responses:
+        "200":
+          description: Active file storage status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleDriveStatus"
+  /storage/drawings/{id}/drive-upload:
+    post:
+      operationId: uploadDrawingToDrive
+      tags: [storage]
+      summary: Upload a drawing file to Google Drive
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: X-File-Name
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-File-Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Recorded Drive upload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DrawingUpload"
+        "409":
+          description: Google Drive is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [storage]
+      operationId: getStorageObject
+      summary: Serve a drawing file
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drawing file content
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/drive-files/{fileId}:
+    get:
+      operationId: getDriveFile
+      tags: [storage]
+      summary: Stream a drawing file from Google Drive
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Drawing file content
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: number
+        minimum: 1
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      schema:
+        type: number
+        minimum: 1
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      schema:
+        type: number
+        minimum: 1
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    Project:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        deletedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, deletedAt, createdAt]
+    RecycleBinEntry:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: number
+        label:
+          type: string
+        deletedAt:
+          type: string
+          format: date-time
+      required: [type, id, label, deletedAt]
+    ProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required: [name]
+    ProjectNote:
+      type: object
+      properties:
+        id:
+          type: number
+        projectName:
+          type: string
+        content:
+          type: string
+        authorId:
+          type: number
+        authorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, projectName, content, authorId, authorName, createdAt, updatedAt]
+    ProjectNoteInput:
+      type: object
+      properties:
+        projectName:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+      required: [projectName, content]
+    ProjectNoteUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+      required: [content]
+    PersonalNote:
+      type: object
+      properties:
+        id:
+          type: number
+        userId:
+          type: number
+        authorName:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, authorName, title, content, createdAt, updatedAt]
+    PersonalNoteInput:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+          minLength: 1
+      required: [content]
+    PersonalNoteUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+          minLength: 1
+      required: [content]
+    ContactProject:
+      type: object
+      properties:
+        id:
+          type: number
+        projectName:
+          type: string
+        role:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, projectName, role, notes, createdAt]
+    Contact:
+      type: object
+      properties:
+        id:
+          type: number
+        companyName:
+          type: string
+        contactName:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [client, consultant, contractor, vendor, supplier, authority, other]
+        service:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactProject"
+      required: [id, companyName, contactName, type, service, email, phone, website, address, notes, createdAt, updatedAt, projects]
+    ContactInput:
+      type: object
+      properties:
+        companyName:
+          type: string
+          minLength: 1
+        contactName:
+          type: string
+        type:
+          type: string
+          enum: [client, consultant, contractor, vendor, supplier, authority, other]
+        service:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        website:
+          type: string
+        address:
+          type: string
+        notes:
+          type: string
+        projectName:
+          type: string
+        projectRole:
+          type: string
+        projectNotes:
+          type: string
+      required: [companyName, type]
+    ContactUpdate:
+      type: object
+      properties:
+        companyName:
+          type: string
+          minLength: 1
+        contactName:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [client, consultant, contractor, vendor, supplier, authority, other]
+        service:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+    ContactProjectInput:
+      type: object
+      properties:
+        projectName:
+          type: string
+          minLength: 1
+        role:
+          type: string
+        notes:
+          type: string
+      required: [projectName]
+    ChecklistTemplateItem:
+      type: object
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        position:
+          type: number
+      required: [id, title, position]
+    ChecklistTemplate:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        createdBy:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChecklistTemplateItem"
+      required: [id, name, description, createdBy, createdAt, updatedAt, items]
+    ChecklistTemplateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+      required: [name, items]
+    ProjectChecklistItem:
+      type: object
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        position:
+          type: number
+        completed:
+          type: boolean
+        completedBy:
+          type: ["number", "null"]
+        completedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, title, position, completed, completedBy, completedAt]
+    ProjectChecklist:
+      type: object
+      properties:
+        id:
+          type: number
+        projectName:
+          type: string
+        templateId:
+          type: number
+        name:
+          type: string
+        createdBy:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectChecklistItem"
+      required: [id, projectName, templateId, name, createdBy, createdAt, items]
+    ProjectChecklistInput:
+      type: object
+      properties:
+        projectName:
+          type: string
+          minLength: 1
+        templateId:
+          type: number
+          minimum: 1
+      required: [projectName, templateId]
+    ChecklistItemUpdate:
+      type: object
+      properties:
+        completed:
+          type: boolean
+      required: [completed]
+    User:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        username:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, username, active, createdAt]
+    UserInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required: [name]
+    AttendanceStatus:
+      type: string
+      enum: [present, late, absent, leave, remote]
+    AttendanceEntry:
+      type: object
+      properties:
+        employeeId:
+          type: number
+        employeeName:
+          type: string
+        username:
+          type: ["string", "null"]
+        attendanceDate:
+          type: string
+          format: date
+        status:
+          type: ["string", "null"]
+          enum: [present, late, absent, leave, remote, null]
+        reason:
+          type: ["string", "null"]
+        recordedBy:
+          type: ["number", "null"]
+        recordedAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        accuracyMeters:
+          type: ["number", "null"]
+        selfCheckinAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [employeeId, employeeName, username, attendanceDate, status, reason, recordedBy, recordedAt, updatedAt, latitude, longitude, accuracyMeters, selfCheckinAt]
+    AttendanceInput:
+      type: object
+      properties:
+        attendanceDate:
+          type: string
+          format: date
+        status:
+          $ref: "#/components/schemas/AttendanceStatus"
+        reason:
+          type: string
+      required: [attendanceDate, status]
+    AttendanceSelfCheckinInput:
+      type: object
+      properties:
+        attendanceDate:
+          type: string
+          format: date
+        workLocation:
+          type: string
+          enum: [office, remote]
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracyMeters:
+          type: number
+          minimum: 0
+          maximum: 100000
+      required: [attendanceDate, workLocation, latitude, longitude, accuracyMeters]
+    PortalUser:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        username:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [admin, user]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, username, role, active, createdAt]
+    LoginInput:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+    AdminUserInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        username:
+          type: string
+          minLength: 3
+        password:
+          type: string
+          minLength: 4
+        role:
+          type: string
+          enum: [admin, user]
+      required: [name, username, password]
+    AdminUserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        active:
+          type: boolean
+    Discipline:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, createdAt]
+    DisciplineInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required: [name]
+    Category:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, createdAt]
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required: [name]
+    DrawingStatus:
+      type: string
+      enum: [draft, in_review, approved, issued, superseded]
+    DrawingDiscipline:
+      type: string
+    Drawing:
+      type: object
+      properties:
+        id:
+          type: number
+        drawingNumber:
+          type: string
+        title:
+          type: string
+        discipline:
+          $ref: "#/components/schemas/DrawingDiscipline"
+        status:
+          $ref: "#/components/schemas/DrawingStatus"
+        assignedTo:
+          type: ["string", "null"]
+        revision:
+          type: string
+        projectName:
+          type: string
+        sheetSize:
+          type: string
+          enum: [A0, A1, A2, A3, A4]
+        author:
+          type: string
+        description:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        issuedDate:
+          type: ["string", "null"]
+          format: date
+        updatedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        attachmentPath:
+          type: ["string", "null"]
+        attachmentName:
+          type: ["string", "null"]
+        attachmentSize:
+          type: ["number", "null"]
+        attachmentContentType:
+          type: ["string", "null"]
+      required: [id, drawingNumber, title, discipline, status, assignedTo, revision, projectName, sheetSize, author, updatedAt, createdAt]
+    DrawingAssignmentUpdate:
+      type: object
+      properties:
+        assigneeName:
+          type: ["string", "null"]
+        assignedBy:
+          type: string
+          minLength: 1
+      required: [assignedBy]
+    DrawingInput:
+      type: object
+      properties:
+        drawingNumber:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        discipline:
+          $ref: "#/components/schemas/DrawingDiscipline"
+        status:
+          $ref: "#/components/schemas/DrawingStatus"
+        revision:
+          type: string
+          minLength: 1
+        projectName:
+          type: string
+          minLength: 1
+        sheetSize:
+          type: string
+          enum: [A0, A1, A2, A3, A4]
+        author:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        issuedDate:
+          type: string
+          format: date
+    DrawingUpdate:
+      type: object
+      properties:
+        drawingNumber:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        discipline:
+          $ref: "#/components/schemas/DrawingDiscipline"
+        status:
+          $ref: "#/components/schemas/DrawingStatus"
+        revision:
+          type: string
+          minLength: 1
+        projectName:
+          type: string
+          minLength: 1
+        sheetSize:
+          type: string
+          enum: [A0, A1, A2, A3, A4]
+        author:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        issuedDate:
+          type: ["string", "null"]
+          format: date
+        attachmentPath:
+          type: ["string", "null"]
+        attachmentName:
+          type: ["string", "null"]
+        attachmentSize:
+          type: ["number", "null"]
+        attachmentContentType:
+          type: ["string", "null"]
+    DashboardSummary:
+      type: object
+      properties:
+        totalDrawings:
+          type: number
+        inReview:
+          type: number
+        approved:
+          type: number
+        issued:
+          type: number
+        overdue:
+          type: number
+        byCategory:
+          type: object
+          additionalProperties:
+            type: number
+      required: [totalDrawings, inReview, approved, issued, overdue, byCategory]
+    Activity:
+      type: object
+      properties:
+        id:
+          type: number
+        type:
+          type: string
+          enum: [drawing_added, drawing_updated, drawing_issued, drawing_approved, drawing_uploaded, drawing_assigned, drawing_deleted, comment_added]
+        message:
+          type: string
+        drawingId:
+          type: ["number", "null"]
+        actor:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, message, drawingId, actor, createdAt]
+    Notification:
+      type: object
+      properties:
+        id:
+          type: number
+        recipientId:
+          type: number
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        link:
+          type: ["string", "null"]
+        readAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, recipientId, type, title, message, link, readAt, createdAt]
+    DrawingUpload:
+      type: object
+      properties:
+        id:
+          type: number
+        drawingId:
+          type: number
+        filePath:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: number
+        contentType:
+          type: string
+        uploadedBy:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+      required: [id, drawingId, filePath, fileName, fileSize, contentType, uploadedBy, uploadedAt]
+    DrawingUploadInput:
+      type: object
+      properties:
+        filePath:
+          type: string
+          minLength: 1
+        fileName:
+          type: string
+          minLength: 1
+        fileSize:
+          type: number
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+        uploadedBy:
+          type: string
+          minLength: 1
+      required: [filePath, fileName, fileSize, contentType, uploadedBy]
+    DrawingUploadUpdate:
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        fileSize:
+          type: number
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+        uploadedBy:
+          type: string
+          minLength: 1
+    DrawingComment:
+      type: object
+      properties:
+        id:
+          type: number
+        drawingId:
+          type: number
+        comment:
+          type: string
+        author:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, drawingId, comment, author, createdAt]
+    DrawingCommentInput:
+      type: object
+      properties:
+        comment:
+          type: string
+          minLength: 1
+        author:
+          type: string
+          minLength: 1
+      required: [comment, author]
+    DrawingCommentUpdate:
+      type: object
+      properties:
+        comment:
+          type: string
+          minLength: 1
+        author:
+          type: string
+          minLength: 1
+    UploadUrlRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: number
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+      required: [name, size, contentType]
+    UploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+      required: [uploadURL, objectPath, metadata]
+    GoogleDriveStatus:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [google_drive, object_storage]
+        connected:
+          type: boolean
+        accountEmail:
+          type: ["string", "null"]
+        displayName:
+          type: ["string", "null"]
+        rootFolderId:
+          type: ["string", "null"]
+      required: [provider, connected, accountEmail, displayName, rootFolderId]
+    ChatChannel:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        createdBy:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, description, createdBy, createdAt]
+    ChatChannelInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+      required: [name]
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: number
+        channelId:
+          type: number
+        authorId:
+          type: number
+        authorName:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, channelId, authorId, authorName, content, createdAt]
+    ChatMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+      required: [content]
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
