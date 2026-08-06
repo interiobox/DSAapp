@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
-import { db, notificationsTable, usersTable } from "@workspace/db";
+import { chatChannelMembersTable, db, notificationsTable, usersTable } from "@workspace/db";
 
 type NotificationInput = {
   recipientId: number;
@@ -46,6 +46,39 @@ export async function notifyMentions(content: string, input: Omit<NotificationIn
     recipientId: user.id,
     message: input.message.replace("{mention}", `@${user.username}`),
   })));
+}
+
+export async function notifyChatChannelMembers(
+  channelId: number,
+  channelName: string,
+  senderName: string,
+  content: string,
+  attachmentName: string | null | undefined,
+  excludeUserId?: number,
+) {
+  const mentionedUsernames = new Set(
+    Array.from(content.matchAll(/@([a-z0-9._-]+)/gi), (match) => match[1].toLowerCase()),
+  );
+  const members = await db.select({
+    id: usersTable.id,
+    username: usersTable.username,
+  })
+    .from(chatChannelMembersTable)
+    .innerJoin(usersTable, eq(usersTable.id, chatChannelMembersTable.userId))
+    .where(and(
+      eq(chatChannelMembersTable.channelId, channelId),
+      eq(usersTable.active, true),
+    ));
+  const preview = content || (attachmentName ? `sent ${attachmentName}` : "sent a new message");
+  await Promise.all(members
+    .filter((member) => member.id !== excludeUserId && !mentionedUsernames.has(member.username?.toLowerCase() ?? ""))
+    .map((member) => createNotification({
+      recipientId: member.id,
+      type: "chat_message",
+      title: `New message in #${channelName}`,
+      message: `${senderName}: ${preview}`,
+      link: "/chat",
+    })));
 }
 
 export async function notifyDrawingAssignee(drawingId: number, assignedTo: string | null | undefined, input: Omit<NotificationInput, "recipientId">, excludeUserId?: number) {

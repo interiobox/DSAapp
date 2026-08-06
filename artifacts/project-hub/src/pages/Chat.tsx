@@ -42,6 +42,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { MentionTextarea } from "@/components/MentionTextarea"
 import { useToast } from "@/hooks/use-toast"
 import { cn, formatTime, formatDate } from "@/lib/utils"
+import { Link } from "wouter"
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"
@@ -281,9 +282,9 @@ export default function ChatPage() {
                 </button>
               )}
             </div>
-            <Button variant="outline" size="icon" className="hidden sm:inline-flex" title="Notifications" data-testid="button-chat-notifications">
-              <Bell className="h-4 w-4" />
-            </Button>
+             <Button asChild variant="outline" size="icon" className="hidden sm:inline-flex" title="Notifications" data-testid="button-chat-notifications">
+               <Link href="/notifications"><Bell className="h-4 w-4" /></Link>
+             </Button>
           </div>
         </div>
       </div>

@@ -121,7 +121,7 @@ Chat message search is local to the selected channel and searches both message c
 
 **How to apply:** Keep chat search compatible with polling, clear it when switching channels, show author context for filtered results, and use Design Sense Architects for company-level branding and install metadata.
 
-Personal notifications are persisted per portal user and are created for username mentions, drawing assignments, and assigned-drawing status changes; chat and comment mention delivery currently uses short polling rather than a WebSocket.
+Personal notifications are persisted per portal user and are created for channel chat messages, username mentions, drawing assignments, and assigned-drawing status changes; chat and comment delivery currently uses short polling rather than a WebSocket.
 
 **Why:** The portal needs reliable unread/read state across reloads while preserving the existing simple deployment model.
 

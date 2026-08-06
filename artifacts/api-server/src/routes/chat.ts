@@ -16,7 +16,7 @@ import {
   ListChatMessagesParams,
 } from "@workspace/api-zod";
 import { requireCurrentUser } from "../lib/portalAuth";
-import { notifyMentions, safelyNotify } from "../lib/notifications";
+import { notifyChatChannelMembers, notifyMentions, safelyNotify } from "../lib/notifications";
 
 const router: IRouter = Router();
 const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024;
@@ -256,6 +256,14 @@ router.post("/chat/channels/:channelId/messages", async (req, res): Promise<void
       link: "/chat",
     }, user.id));
   }
+  await safelyNotify(() => notifyChatChannelMembers(
+    channel.id,
+    channel.name,
+    user.name,
+    content,
+    attachmentName,
+    user.id,
+  ));
   res.status(201).json(message);
 });
 
