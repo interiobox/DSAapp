@@ -247,7 +247,7 @@ export default function Assignments() {
                           const draftAssignee = assigneeDrafts[drawing.id] ?? drawing.assignedTo ?? ""
                           const isSaving = updateAssignment.isPending
                              return (
-                              <div key={drawing.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(120px,150px)_minmax(280px,300px)] lg:items-center">
+                              <div key={drawing.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(120px,150px)_minmax(230px,250px)] lg:items-center">
                                <button type="button" className="min-w-0 text-left group" onClick={() => setLocation(`/drawings/${drawing.id}`)}>
                                   <p className="whitespace-normal break-words font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">{drawing.title}</p>
                                   <p className="mt-1 whitespace-normal break-words text-[11px] font-mono uppercase tracking-wider text-muted-foreground">{drawing.projectName} · <span className="capitalize">{drawing.discipline}</span></p>
