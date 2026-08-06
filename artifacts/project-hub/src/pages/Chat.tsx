@@ -12,7 +12,6 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
-  MoreHorizontal,
   Paperclip,
   Plus,
   Reply,
@@ -20,13 +19,11 @@ import {
   Send,
   Smile,
   Trash2,
-  Users,
   X,
 } from "lucide-react"
 
 import {
   getListChatChannelsQueryKey,
-  getListChatChannelMembersQueryKey,
   getListChatMessagesQueryKey,
   getListUsersQueryKey,
   useCreateChatChannel,
@@ -35,7 +32,6 @@ import {
   useDeleteChatMessage,
   useJoinChatChannel,
   useLeaveChatChannel,
-  useListChatChannelMembers,
   useListChatChannels,
   useListChatMessages,
   useListUsers,
@@ -163,18 +159,10 @@ export default function ChatPage() {
     },
   })
   const messages = messagesQuery.data ?? []
-  const activeLatestMessage = messages[messages.length - 1]
   const globalSearchQuery = useSearchChatMessages(
     { query: messageSearch.trim() || "x" },
     { query: { enabled: isGlobalSearch && messageSearch.trim().length > 0, queryKey: ["/api/chat/search", messageSearch.trim()] } },
   )
-  const membersQuery = useListChatChannelMembers(activeChannelId, {
-    query: {
-      enabled: Boolean(activeChannel),
-      queryKey: getListChatChannelMembersQueryKey(activeChannelId),
-      refetchInterval: 15000,
-    },
-  })
   const filteredMessages = useMemo(() => {
     const query = messageSearch.trim().toLocaleLowerCase()
     if (!query) return messages
@@ -223,8 +211,6 @@ export default function ChatPage() {
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages.length, activeChannelId])
-
-  const participants = membersQuery.data ?? []
 
   function submitMessage() {
     const content = message.trim()
@@ -343,7 +329,6 @@ export default function ChatPage() {
     joinChannel.mutate({ channelId: activeChannel.id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
-        queryClient.invalidateQueries({ queryKey: getListChatChannelMembersQueryKey(activeChannel.id) })
         toast({ title: `Joined #${activeChannel.name}` })
       },
       onError: (error) => toast({ title: "Could not join channel", description: error instanceof Error ? error.message : "Please try again." }),
@@ -356,7 +341,6 @@ export default function ChatPage() {
       onSuccess: () => {
         setAttachment(null)
         queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
-        queryClient.invalidateQueries({ queryKey: getListChatChannelMembersQueryKey(activeChannel.id) })
         toast({ title: `Left #${activeChannel.name}` })
       },
       onError: (error) => toast({ title: "Could not leave channel", description: error instanceof Error ? error.message : "Please try again." }),
@@ -384,52 +368,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#f7f8fa]">
-      <div className="flex-none border-b bg-card px-4 py-4 sm:px-6">
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <MessageSquare className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Team Chat</h1>
-                <p className="text-xs text-muted-foreground">Keep project conversations close to the drawing register.</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="relative min-w-0 flex-1 sm:flex-none">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                aria-label="Search messages"
-                 placeholder={isGlobalSearch ? "Search all channels" : "Search this channel"}
-                value={messageSearch}
-                onChange={(event) => setMessageSearch(event.target.value)}
-                className="h-9 w-full pl-9 pr-8 sm:w-52 lg:w-64"
-                data-testid="input-search-chat"
-              />
-              {messageSearch && (
-                <button
-                  type="button"
-                  aria-label="Clear message search"
-                  onClick={() => setMessageSearch("")}
-                  className="absolute right-2 top-2 rounded-sm text-muted-foreground hover:text-foreground"
-                  data-testid="button-clear-chat-search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-             <Button variant={isGlobalSearch ? "default" : "outline"} size="icon" className="hidden sm:inline-flex" title="Toggle global chat search" onClick={() => setIsGlobalSearch((value) => !value)} data-testid="button-toggle-global-chat-search">
-               <Search className="h-4 w-4" />
-             </Button>
-             <Button asChild variant="outline" size="icon" className="hidden sm:inline-flex" title="Notifications" data-testid="button-chat-notifications">
-               <Link href="/notifications"><Bell className="h-4 w-4" /></Link>
-             </Button>
-          </div>
-        </div>
-      </div>
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside className={cn("w-full shrink-0 flex-col border-r bg-white md:w-[290px] lg:w-[320px]", isMobileChatOpen ? "hidden md:flex" : "flex")}>
           <div className="border-b px-4 py-4">
@@ -439,6 +377,9 @@ export default function ChatPage() {
                 <p className="mt-0.5 text-xs text-muted-foreground">{channels.length} conversation{channels.length === 1 ? "" : "s"}</p>
             </div>
               <div className="flex items-center gap-1">
+                <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" title="Notifications" data-testid="button-chat-notifications">
+                  <Link href="/notifications"><Bell className="h-4 w-4" /></Link>
+                </Button>
                 <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" onClick={() => setIsDirectDialogOpen(true)} title="Start a direct message" data-testid="button-create-direct-chat">
                   <MessageSquare className="h-4 w-4" />
                 </Button>
@@ -513,18 +454,6 @@ export default function ChatPage() {
                 </div>
             </div>
           </ScrollArea>
-          <div className="border-t px-3 py-3">
-            <div className="flex items-center gap-2 rounded-xl bg-[#f5f7fa] px-3 py-2.5">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-[10px] text-primary-foreground">{initials(user?.name || user?.username || "User")}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold">{user?.name || user?.username}</p>
-                <p className="text-[10px] text-emerald-700">Available</p>
-              </div>
-              <MoreHorizontal className="h-4 w-4 text-muted-foreground/70" />
-            </div>
-          </div>
         </aside>
 
         <main className={cn("min-w-0 flex-1 flex-col bg-white", isMobileChatOpen ? "flex" : "hidden md:flex")}>
@@ -532,18 +461,6 @@ export default function ChatPage() {
             {activeChannel ? (
               <>
                 <div className="min-w-0">
-                  <div className="mb-2 flex gap-1 overflow-x-auto lg:hidden">
-                     {channels.map((channel) => (
-                      <button
-                        key={channel.id}
-                        type="button"
-                        onClick={() => setSelectedChannelId(channel.id)}
-                        className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium", activeChannel.id === channel.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}
-                      >
-                         {channel.channelType === "direct" ? conversationName(channel) : `#${channel.name}`}
-                      </button>
-                    ))}
-                  </div>
                   <div className="flex items-center gap-2">
                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full md:hidden" onClick={() => setIsMobileChatOpen(false)} aria-label="Back to conversations" data-testid="button-back-to-chat-list">
                        <ArrowLeft className="h-4 w-4" />
@@ -554,11 +471,25 @@ export default function ChatPage() {
                   </div>
                   <p className="mt-1 truncate pl-7 text-xs text-muted-foreground">{activeChannel.description || "A place for the team to talk."}</p>
                 </div>
-                 <div className="flex shrink-0 items-center gap-2">
-                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                     <Users className="h-4 w-4" />
-                     <span className="hidden sm:inline">{activeChannel.memberCount} member{activeChannel.memberCount === 1 ? "" : "s"}</span>
-                   </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <div className="relative hidden sm:block">
+                      <Search className="pointer-events-none absolute left-3 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        aria-label="Search messages"
+                        placeholder={isGlobalSearch ? "Search all messages" : "Search messages"}
+                        value={messageSearch}
+                        onChange={(event) => setMessageSearch(event.target.value)}
+                        className="h-8 w-40 rounded-full border-0 bg-[#f1f3f5] pl-8 pr-7 text-[11px] shadow-none focus-visible:ring-1 focus-visible:ring-primary/30"
+                        data-testid="input-search-chat"
+                      />
+                      {messageSearch && <button type="button" aria-label="Clear message search" onClick={() => setMessageSearch("")} className="absolute right-2 top-1.5 text-muted-foreground"><X className="h-3.5 w-3.5" /></button>}
+                    </div>
+                    <Button variant={isGlobalSearch ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-full" title="Toggle global message search" onClick={() => setIsGlobalSearch((value) => !value)} data-testid="button-toggle-global-chat-search">
+                      <Search className="h-4 w-4" />
+                    </Button>
+                    <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Notifications" data-testid="button-chat-room-notifications">
+                      <Link href="/notifications"><Bell className="h-4 w-4" /></Link>
+                    </Button>
                    {activeChannel.joined ? (
                      <Button variant="outline" size="sm" onClick={leaveActiveChannel} disabled={leaveChannel.isPending || activeChannel.createdBy === user?.id} title={activeChannel.createdBy === user?.id ? "Channel creators cannot leave their channel" : "Leave channel"} data-testid="button-leave-chat-channel">
                        {leaveChannel.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <LogOut className="mr-1.5 h-3.5 w-3.5" />}<span className="hidden sm:inline">Leave</span>
@@ -717,32 +648,6 @@ export default function ChatPage() {
           </div>
         </main>
 
-        <aside className="hidden w-[210px] shrink-0 border-l bg-[#fbfbfc] lg:flex lg:flex-col">
-          <div className="border-b px-4 py-4">
-            <div className="flex items-center justify-between">
-               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Members</p>
-               <span className="font-mono text-[10px] text-muted-foreground">{activeChannel?.memberCount ?? 0}</span>
-            </div>
-          </div>
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-1 p-3">
-               {participants.length ? participants.map((participant) => (
-                 <div key={participant.userId} className="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/50" data-testid={`member-chat-${participant.userId}`}>
-                  <div className="relative">
-                    <Avatar className="h-8 w-8">
-                     <AvatarFallback className="bg-secondary text-[10px]">{initials(participant.name)}</AvatarFallback>
-                    </Avatar>
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#fbfbfc] bg-emerald-500" />
-                  </div>
-                  <div className="min-w-0">
-                   <p className="truncate text-xs font-medium">{participant.name}</p>
-                   <p className="text-[10px] text-muted-foreground">{participant.userId === activeChannel?.createdBy ? "Channel owner" : participant.role}</p>
-                  </div>
-                </div>
-               )) : <p className="px-2 py-3 text-xs text-muted-foreground">No members yet.</p>}
-            </div>
-          </ScrollArea>
-        </aside>
       </div>
 
        <Dialog open={isChannelDialogOpen} onOpenChange={(open) => {
