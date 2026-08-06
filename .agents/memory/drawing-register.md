@@ -61,11 +61,11 @@ Every drawing mutation is mirrored into the persistent `drawing-reviews` chat ch
 
 **How to apply:** Route server-side drawing activity through the shared activity helper so UI, API, and admin-originated mutations remain covered.
 
-The navigation now includes operational views for projects, review queue, activity, deadlines, archive, notifications, reports, standards, issue register, files, team directory, and personal settings.
+The navigation now includes operational views for projects, review queue, audit history, deadlines, archive, notifications, reports, standards, issue register, team directory, and personal settings; uploaded files and versions are managed from each drawing detail page.
 
-**Why:** The portal should support the complete drawing-review workflow without turning the existing single-purpose drawing library into an unrelated project-management system.
+**Why:** The portal should support the complete drawing-review workflow without turning the existing single-purpose drawing library into an unrelated project-management system or splitting one record across redundant destinations.
 
-**How to apply:** Prefer live aggregations of drawings, projects, comments, uploads, checklists, users, and activity; keep settings local to the signed-in browser unless a server preference model is explicitly added.
+**How to apply:** Prefer live aggregations of drawings, projects, comments, uploads, checklists, users, and activity; keep project dashboard content in the project detail workspace, keep file/version/preview controls together on drawing detail, and keep settings local to the signed-in browser unless a server preference model is explicitly added.
 
 My Feed is a distinct user-specific workspace and should remain a primary navigation destination even when shared Activity, Reports, or Team Directory tabs are consolidated or hidden.
 

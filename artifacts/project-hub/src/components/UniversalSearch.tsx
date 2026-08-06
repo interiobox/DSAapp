@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useLocation } from "wouter"
-import { Activity, Archive, BarChart3, Bell, BookOpen, CalendarDays, CheckSquare, FileText, FileWarning, FolderKanban, FolderOpen, LayoutDashboard, MessageSquare, Search, Settings, ShieldCheck, UserRoundCog, Users, UsersRound } from "lucide-react"
+import { Activity, Archive, BarChart3, Bell, BookOpen, CalendarDays, CheckSquare, FileText, FileWarning, FolderKanban, LayoutDashboard, MessageSquare, Search, Settings, ShieldCheck, UserRoundCog, Users, UsersRound } from "lucide-react"
 import {
   useListActivity,
   useListCategories,
@@ -62,11 +62,10 @@ export function UniversalSearch() {
       { label: "My Feed", detail: "Your assigned work and activity", icon: FileText, href: "/feed" },
       { label: "Team Chat", detail: "Project coordination conversations", icon: MessageSquare, href: "/chat" },
       { label: "Notifications", detail: "Your unread updates", icon: Bell, href: "/notifications" },
-      { label: "Activity", detail: "Full drawing activity history", icon: Activity, href: "/activity" },
+      { label: "Audit history", detail: "Shared drawing activity history", icon: Activity, href: "/activity" },
       { label: "Reports", detail: "Detailed register health and workload", icon: BarChart3, href: "/reports" },
       { label: "Standards", detail: "Reusable checklist templates and categories", icon: BookOpen, href: "/standards" },
       { label: "Issue Register", detail: "Review comments and drawing issues", icon: FileWarning, href: "/issues" },
-      { label: "Files", detail: "Uploaded drawing files and history", icon: FolderOpen, href: "/files" },
       { label: "Contacts", detail: "Project contacts and partners", icon: UsersRound, href: "/contacts" },
       { label: "Recycle bin", detail: "All recycled records retained for 30 days", icon: Archive, href: "/archive" },
       { label: "Settings", detail: "Personal preferences and categories", icon: Settings, href: "/settings" },

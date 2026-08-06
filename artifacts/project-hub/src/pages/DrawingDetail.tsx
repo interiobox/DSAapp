@@ -457,91 +457,88 @@ export default function DrawingDetail() {
               <CardHeader className="border-b pb-4">
                 <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Upload className="w-4 h-4" />
-                  Drawing File
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {drawing.attachmentPath && drawing.attachmentName ? (
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-md border bg-muted/20 p-4">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{drawing.attachmentName}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {drawing.attachmentSize ? `${(drawing.attachmentSize / 1024 / 1024).toFixed(2)} MB` : "File"} · {drawing.attachmentContentType || "Unknown type"}
-                      </p>
-                    </div>
-                    <Button asChild variant="outline" size="sm" className="shrink-0">
-                      <a href={getStorageObjectUrl(drawing.attachmentPath) ?? "#"} target="_blank" rel="noreferrer">
-                        <Download className="mr-2 h-4 w-4" /> Open file
-                      </a>
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="mb-4 text-sm text-muted-foreground">No drawing file attached yet. Upload a PDF or source file for this sheet.</p>
-                )}
-                <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50">
-                  {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                  {isUploading ? "Uploading..." : "Upload drawing file"}
-                  <input
-                    type="file"
-                    className="sr-only"
-                    accept=".pdf,.dwg,.dxf,.rvt,.ifc,image/*"
-                    onChange={handleUpload}
-                    disabled={isUploading}
-                  />
-                </label>
-                <p className="mt-2 text-xs text-muted-foreground">Maximum file size: 25 MB. Uploads are automatically attributed to your account.</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="border-b pb-4">
-                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <History className="w-4 h-4" />
-                  Drawing Versions
+                  Files, Versions & Preview
                   {uploads.length > 0 && <Badge variant="outline" className="ml-auto">{uploads.length} version{uploads.length === 1 ? "" : "s"}</Badge>}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                {uploads.length === 0 ? (
-                  <p className="p-6 text-sm text-muted-foreground">No versions recorded yet. Upload a drawing file to create the first version.</p>
-                ) : (
-                  <div className="divide-y">
-                    {uploads.map((upload, index) => (
-                      <div key={upload.id} className={`flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between ${selectedUploadId === upload.id ? "bg-primary/5" : ""}`}>
+                <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)]">
+                  <div>
+                    {drawing.attachmentPath && drawing.attachmentName ? (
+                      <div className="flex flex-col gap-4 rounded-md border bg-muted/20 p-4">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={selectedUploadId === upload.id ? "default" : "outline"}>V{uploads.length - index}</Badge>
-                            <button type="button" className="truncate text-left font-medium text-primary hover:underline" onClick={() => setSelectedUploadId(upload.id)}>
-                              {upload.fileName}
-                            </button>
-                          </div>
+                          <p className="truncate font-medium text-foreground">{drawing.attachmentName}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Uploaded by <span className="font-medium text-foreground">{upload.uploadedBy}</span> · {formatDate(upload.uploadedAt)} · {(upload.fileSize / 1024 / 1024).toFixed(2)} MB
+                            {drawing.attachmentSize ? `${(drawing.attachmentSize / 1024 / 1024).toFixed(2)} MB` : "File"} · {drawing.attachmentContentType || "Unknown type"}
                           </p>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className="font-mono text-xs text-muted-foreground">{upload.contentType}</span>
-                          <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setSelectedUploadId(upload.id)}>
-                            <Eye className="mr-1.5 h-3.5 w-3.5" />Preview
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 text-xs text-destructive hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
-                            onClick={() => void handleUploadDelete(upload)}
-                            disabled={deletingUploadId === upload.id}
-                            aria-label={`Move ${upload.fileName} to recycle bin`}
-                            data-testid={`button-recycle-upload-${upload.id}`}
-                          >
-                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                            {deletingUploadId === upload.id ? "Recycling..." : "Recycle"}
-                          </Button>
-                        </div>
+                        <Button asChild variant="outline" size="sm" className="w-fit">
+                          <a href={getStorageObjectUrl(drawing.attachmentPath) ?? "#"} target="_blank" rel="noreferrer">
+                            <Download className="mr-2 h-4 w-4" /> Open current file
+                          </a>
+                        </Button>
                       </div>
-                    ))}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No drawing file attached yet. Upload a PDF or source file for this sheet.</p>
+                    )}
+                    <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50">
+                      {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                      {isUploading ? "Uploading..." : "Upload new version"}
+                      <input
+                        type="file"
+                        className="sr-only"
+                        accept=".pdf,.dwg,.dxf,.rvt,.ifc,image/*"
+                        onChange={handleUpload}
+                        disabled={isUploading}
+                      />
+                    </label>
+                    <p className="mt-2 text-xs text-muted-foreground">Maximum file size: 25 MB. Uploads are automatically attributed to your account.</p>
                   </div>
-                )}
+                  <div>
+                    <SheetPreview filePath={previewPath} fileName={previewName} contentType={previewType} />
+                    {selectedUpload && (
+                      <p className="pt-3 text-xs text-muted-foreground">
+                        Previewing <span className="font-medium text-foreground">{selectedUpload.fileName}</span> · Version {uploads.length - uploads.findIndex((upload) => upload.id === selectedUpload.id)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="border-t">
+                  <div className="flex items-center gap-2 border-b px-6 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <History className="h-4 w-4" /> Version history
+                  </div>
+                  {uploads.length === 0 ? (
+                    <p className="p-6 text-sm text-muted-foreground">No versions recorded yet. Upload a drawing file to create the first version.</p>
+                  ) : (
+                    <div className="divide-y">
+                      {uploads.map((upload, index) => (
+                        <div key={upload.id} className={`flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between ${selectedUploadId === upload.id ? "bg-primary/5" : ""}`}>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={selectedUploadId === upload.id ? "default" : "outline"}>V{uploads.length - index}</Badge>
+                              <button type="button" className="truncate text-left font-medium text-primary hover:underline" onClick={() => setSelectedUploadId(upload.id)}>
+                                {upload.fileName}
+                              </button>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Uploaded by <span className="font-medium text-foreground">{upload.uploadedBy}</span> · {formatDate(upload.uploadedAt)} · {(upload.fileSize / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="font-mono text-xs text-muted-foreground">{upload.contentType}</span>
+                            <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setSelectedUploadId(upload.id)}>
+                              <Eye className="mr-1.5 h-3.5 w-3.5" />Preview
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs text-destructive hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive" onClick={() => void handleUploadDelete(upload)} disabled={deletingUploadId === upload.id} aria-label={`Move ${upload.fileName} to recycle bin`} data-testid={`button-recycle-upload-${upload.id}`}>
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              {deletingUploadId === upload.id ? "Recycling..." : "Recycle"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -618,27 +615,6 @@ export default function DrawingDetail() {
                   <span className="text-sm font-medium">Issued Date</span>
                   <span className="text-sm font-bold text-primary">{drawing.issuedDate ? formatDate(drawing.issuedDate) : '-'}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="border-b pb-4">
-                <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Sheet Preview
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <SheetPreview
-                  filePath={previewPath}
-                  fileName={previewName}
-                  contentType={previewType}
-                />
-                {selectedUpload && (
-                  <p className="px-2 pb-2 pt-3 text-xs text-muted-foreground">
-                    Previewing <span className="font-medium text-foreground">{selectedUpload.fileName}</span> · Version {uploads.length - uploads.findIndex((upload) => upload.id === selectedUpload.id)}
-                  </p>
-                )}
               </CardContent>
             </Card>
 

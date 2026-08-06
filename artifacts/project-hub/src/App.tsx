@@ -17,7 +17,7 @@ import MyFeed from "@/pages/MyFeed";
 import NotFound from "@/pages/not-found";
 import UsersPage from "@/pages/Users";
 import { Activity, Archive, Deadlines, Projects, ReviewQueue } from "@/pages/WorkspaceViews";
-import { Files, Issues, Notifications, Reports, Standards, Team } from "@/pages/ManagementViews";
+import { Issues, Notifications, Reports, Standards, Team } from "@/pages/ManagementViews";
 import SettingsPage from "@/pages/Settings";
 import Dashboard from "@/pages/Dashboard";
 import ContactsPage from "@/pages/Contacts";
@@ -233,7 +233,7 @@ function ProtectedRoutes() {
         <Route path="/reports" component={Reports} />
         <Route path="/standards" component={Standards} />
         <Route path="/issues" component={Issues} />
-        <Route path="/files" component={Files} />
+        <Route path="/files"><Redirect to="/drawings" /></Route>
         <Route path="/team" component={Team} />
         <Route path="/contacts" component={ContactsPage} />
         <Route path="/settings" component={SettingsPage} />

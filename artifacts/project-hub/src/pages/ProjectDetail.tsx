@@ -168,9 +168,9 @@ export default function ProjectDetail() {
                 <FolderKanban className="h-6 w-6" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary font-mono">Workspace</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary font-mono">Project dashboard</p>
                 <h1 className="mt-1 truncate text-2xl font-bold tracking-tight sm:text-3xl">{project.name}</h1>
-                <p className="mt-1.5 text-sm text-muted-foreground">Dedicated view of drawings, coordination, notes, and project progress.</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">One place for drawings, coordination, notes, deadlines, and project progress.</p>
               </div>
             </div>
              <div className="flex flex-wrap items-center gap-1.5">
