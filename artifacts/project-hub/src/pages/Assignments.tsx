@@ -247,7 +247,7 @@ export default function Assignments() {
                           const draftAssignee = assigneeDrafts[drawing.id] ?? drawing.assignedTo ?? ""
                           const isSaving = updateAssignment.isPending
                              return (
-                              <div key={drawing.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(120px,150px)_minmax(230px,250px)] lg:items-center">
+                              <div key={drawing.id} className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.9fr)_minmax(130px,0.65fr)_minmax(230px,0.85fr)] lg:items-center">
                                <button type="button" className="min-w-0 text-left group" onClick={() => setLocation(`/drawings/${drawing.id}`)}>
                                   <p className="whitespace-normal break-words font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">{drawing.title}</p>
                                   <p className="mt-1 whitespace-normal break-words text-[11px] font-mono uppercase tracking-wider text-muted-foreground">{drawing.projectName} · <span className="capitalize">{drawing.discipline}</span></p>
@@ -261,7 +261,7 @@ export default function Assignments() {
                                  <Progress value={progress} className="h-1.5 rounded-sm" />
                                </div>
                                 <div className="min-w-0">
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:flex-nowrap lg:gap-1">
+                                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                                   <Select
                                     value={draftAssignee || undefined}
                                     onValueChange={(value) => setAssigneeDrafts((current) => ({ ...current, [drawing.id]: value }))}
