@@ -7,9 +7,14 @@
  */
 import type { DrawingDiscipline } from './drawingDiscipline';
 import type { DrawingStatus } from './drawingStatus';
+import type { ListDrawingsDue } from './listDrawingsDue';
 
 export type ListDrawingsParams = {
 search?: string;
 status?: DrawingStatus;
 discipline?: DrawingDiscipline;
+project?: string;
+revision?: string;
+assignedTo?: string;
+due?: ListDrawingsDue;
 };

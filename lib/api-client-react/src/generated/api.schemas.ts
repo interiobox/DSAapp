@@ -736,7 +736,21 @@ export type ListDrawingsParams = {
 search?: string;
 status?: DrawingStatus;
 discipline?: DrawingDiscipline;
+project?: string;
+revision?: string;
+assignedTo?: string;
+due?: ListDrawingsDue;
 };
+
+export type ListDrawingsDue = typeof ListDrawingsDue[keyof typeof ListDrawingsDue];
+
+
+export const ListDrawingsDue = {
+  all: 'all',
+  overdue: 'overdue',
+  upcoming: 'upcoming',
+  none: 'none',
+} as const;
 
 export type RestoreRecycleBinEntry200 = {
   id?: number;

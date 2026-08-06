@@ -108,6 +108,27 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/DrawingDiscipline"
+        - name: project
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: revision
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: assignedTo
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: due
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, overdue, upcoming, none]
       responses:
         "200":
           description: Drawing library
@@ -1286,6 +1307,24 @@ paths:
           description: Deleted
         "404":
           description: Upload not found
+  /drawings/{id}/activity:
+    get:
+      operationId: listDrawingActivity
+      tags: [drawings]
+      summary: List audit activity for a drawing
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Drawing audit activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+        "404":
+          description: Drawing not found
   /drawings/{id}/comments:
     get:
       operationId: listDrawingComments

@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query"
 
 import {
   useListDrawings, useCreateDrawing, useDeleteDrawing,
-  useListProjects, useCreateProject, useListCategories,
+  useListProjects, useCreateProject, useListCategories, useListUsers,
   getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey,
   getListProjectsQueryKey
 } from "@workspace/api-client-react"
@@ -45,25 +45,37 @@ export default function DrawingList() {
   const [categoryFilter, setCategoryFilter] = React.useState<DrawingDiscipline | "all">("all")
   const [statusFilter, setStatusFilter] = React.useState<DrawingStatus | "all">("all")
   const [projectFilter, setProjectFilter] = React.useState(() => new URLSearchParams(window.location.search).get("project") || "all")
+  const [revisionQuery, setRevisionQuery] = React.useState("")
+  const [assigneeFilter, setAssigneeFilter] = React.useState("all")
+  const [dueFilter, setDueFilter] = React.useState<"all" | "overdue" | "upcoming" | "none">("all")
   const [isCreateOpen, setIsCreateOpen] = React.useState(false)
   const [isProjectOpen, setIsProjectOpen] = React.useState(false)
   const [selectedProject, setSelectedProject] = React.useState("")
   const [newProjectName, setNewProjectName] = React.useState("")
-  const { data: drawings, isLoading } = useListDrawings({
+  const drawingQuery = {
     search: searchQuery || undefined,
     discipline: categoryFilter !== "all" ? categoryFilter : undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
-  }, { query: { queryKey: getListDrawingsQueryKey({ search: searchQuery || undefined, discipline: categoryFilter !== "all" ? categoryFilter : undefined, status: statusFilter !== "all" ? statusFilter : undefined }) }})
+    project: projectFilter !== "all" ? projectFilter : undefined,
+    revision: revisionQuery || undefined,
+    assignedTo: assigneeFilter !== "all" ? assigneeFilter : undefined,
+    due: dueFilter !== "all" ? dueFilter : undefined,
+  }
+  const { data: drawings, isLoading } = useListDrawings(
+    drawingQuery,
+    { query: { queryKey: getListDrawingsQueryKey(drawingQuery) } },
+  )
 
   const createDrawing = useCreateDrawing()
   const deleteDrawing = useDeleteDrawing()
   const { data: projects, isLoading: projectsLoading } = useListProjects()
   const { data: categories } = useListCategories()
+  const { data: users } = useListUsers()
   const createProject = useCreateProject()
   const projectOptions = React.useMemo(() => projects?.map((project) => project.name) ?? [], [projects])
   const visibleDrawings = React.useMemo(
-    () => (drawings ?? []).filter((drawing) => projectFilter === "all" || drawing.projectName === projectFilter),
-    [drawings, projectFilter],
+    () => drawings ?? [],
+    [drawings],
   )
   const groupedDrawings = React.useMemo(() => {
     const groups = new Map<string, NonNullable<typeof drawings>[number][]>()
@@ -174,13 +186,13 @@ export default function DrawingList() {
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input 
-             placeholder="Search drawing names..."
+             placeholder="Search drawings, projects, revisions, authors..."
              className="pl-9 text-sm rounded-sm bg-background border-border/80 h-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Select value={projectFilter} onValueChange={setProjectFilter}>
             <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-sm bg-background border-border/80">
               <FolderKanban className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -215,8 +227,36 @@ export default function DrawingList() {
               ))}
             </SelectContent>
           </Select>
-          {(searchQuery || categoryFilter !== "all" || statusFilter !== "all" || projectFilter !== "all") && (
-            <Button variant="ghost" size="sm" className="h-9 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setStatusFilter("all"); setProjectFilter("all"); }} title="Clear filters">
+          <Input
+            value={revisionQuery}
+            onChange={(event) => setRevisionQuery(event.target.value)}
+            placeholder="Revision"
+            aria-label="Filter by revision"
+            className="h-9 w-full rounded-sm bg-background border-border/80 sm:w-[120px]"
+          />
+          <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+            <SelectTrigger className="w-full sm:w-[180px] h-9 rounded-sm bg-background border-border/80">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All assignees</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {(users ?? []).map((person) => <SelectItem key={person.id} value={person.name}>{person.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={dueFilter} onValueChange={(value) => setDueFilter(value as typeof dueFilter)}>
+            <SelectTrigger className="w-full sm:w-[150px] h-9 rounded-sm bg-background border-border/80">
+              <SelectValue placeholder="Due dates" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All due dates</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="none">No due date</SelectItem>
+            </SelectContent>
+          </Select>
+          {(searchQuery || categoryFilter !== "all" || statusFilter !== "all" || projectFilter !== "all" || revisionQuery || assigneeFilter !== "all" || dueFilter !== "all") && (
+            <Button variant="ghost" size="sm" className="h-9 px-2 text-muted-foreground hover:text-foreground" onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setStatusFilter("all"); setProjectFilter("all"); setRevisionQuery(""); setAssigneeFilter("all"); setDueFilter("all"); }} title="Clear filters">
               <X className="h-4 w-4 mr-1" /> Clear
             </Button>
           )}

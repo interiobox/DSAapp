@@ -109,6 +109,12 @@ Universal search is a signed-in app-shell command palette opened from the sideba
 
 **How to apply:** Keep the palette available on every authenticated route, group results by type, respect role-aware destinations, and route record results directly to their detail or workspace page.
 
+The Drawing Library’s advanced search should remain server-backed and cover drawing title/number, project, category, status, revision, author, assignee, and due-date state; drawing detail should expose upload versions, previews, and a per-drawing audit timeline.
+
+**Why:** Architectural teams need to find records by more than the visible drawing name, and review/accountability work depends on seeing both historical files and the actions taken on a sheet.
+
+**How to apply:** Extend the existing drawing query rather than adding a parallel search index, treat active upload history as drawing versions, preserve the existing preview component for each selected version, and use the persistent drawing activity stream for audit history.
+
 Chat message search is local to the selected channel and searches both message content and author names; the company brand is Design Sense Architects while Drawing Library remains the product/workspace name.
 
 **Why:** Teams need quick retrieval within active conversations, and the company identity should be visible without replacing the established drawing-library product vocabulary.

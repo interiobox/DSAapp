@@ -59,7 +59,11 @@ export const HealthCheckResponse = zod.object({
 export const ListDrawingsQueryParams = zod.object({
   "search": zod.coerce.string().optional(),
   "status": zod.enum(['draft', 'in_review', 'approved', 'issued', 'superseded']).optional(),
-  "discipline": zod.coerce.string().optional()
+  "discipline": zod.coerce.string().optional(),
+  "project": zod.coerce.string().optional(),
+  "revision": zod.coerce.string().optional(),
+  "assignedTo": zod.coerce.string().optional(),
+  "due": zod.enum(['all', 'overdue', 'upcoming', 'none']).optional()
 })
 
 export const ListDrawingsResponseItem = zod.object({
@@ -1590,6 +1594,27 @@ export const DeleteDrawingUploadParams = zod.object({
 })
 
 export const DeleteDrawingUploadResponse = zod.void()
+
+
+/**
+ * @summary List audit activity for a drawing
+ */
+
+
+
+export const ListDrawingActivityParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const ListDrawingActivityResponseItem = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['drawing_added', 'drawing_updated', 'drawing_issued', 'drawing_approved', 'drawing_uploaded', 'drawing_assigned', 'drawing_deleted', 'comment_added']),
+  "message": zod.string(),
+  "drawingId": zod.number().nullable(),
+  "actor": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListDrawingActivityResponse = zod.array(ListDrawingActivityResponseItem)
 
 
 /**

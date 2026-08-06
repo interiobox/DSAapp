@@ -264,6 +264,26 @@ router.get("/activity", async (_req, res): Promise<void> => {
   res.json(ListActivityResponse.parse(activity));
 });
 
+router.get("/drawings/:id/activity", async (req, res): Promise<void> => {
+  const parsed = GetDrawingParams.safeParse(req.params);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [drawing] = await db.select({ id: drawingsTable.id })
+    .from(drawingsTable)
+    .where(and(eq(drawingsTable.id, parsed.data.id), isNull(drawingsTable.deletedAt)))
+    .limit(1);
+  if (!drawing) {
+    res.status(404).json({ error: "Drawing not found" });
+    return;
+  }
+  const activity = await db.select().from(drawingActivityTable)
+    .where(eq(drawingActivityTable.drawingId, parsed.data.id))
+    .orderBy(desc(drawingActivityTable.createdAt), desc(drawingActivityTable.id));
+  res.json(ListActivityResponse.parse(activity));
+});
+
 router.get("/drawings/:id/uploads", async (req, res): Promise<void> => {
   const parsed = GetDrawingParams.safeParse(req.params);
   if (!parsed.success) {

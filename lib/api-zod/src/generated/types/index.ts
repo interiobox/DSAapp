@@ -65,6 +65,7 @@ export * from './googleDriveStatusProvider';
 export * from './healthStatus';
 export * from './listAttendanceParams';
 export * from './listContactsParams';
+export * from './listDrawingsDue';
 export * from './listDrawingsParams';
 export * from './listProjectChecklistsParams';
 export * from './listProjectNotesParams';

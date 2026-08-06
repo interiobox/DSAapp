@@ -5476,6 +5476,83 @@ export const useDeleteDrawingUpload = <TError = ErrorType<void>,
       return useMutation(getDeleteDrawingUploadMutationOptions(options));
     }
 
+export const getListDrawingActivityUrl = (id: number,) => {
+
+
+
+
+  return `/api/drawings/${id}/activity`
+}
+
+/**
+ * @summary List audit activity for a drawing
+ */
+export const listDrawingActivity = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Activity[]> => {
+
+  return customFetch<Activity[]>(getListDrawingActivityUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDrawingActivityQueryKey = (id: number,) => {
+    return [
+    `/api/drawings/${id}/activity`
+    ] as const;
+    }
+
+
+export const getListDrawingActivityQueryOptions = <TData = Awaited<ReturnType<typeof listDrawingActivity>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDrawingActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDrawingActivityQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDrawingActivity>>> = ({ signal }) => listDrawingActivity(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDrawingActivity>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDrawingActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listDrawingActivity>>>
+export type ListDrawingActivityQueryError = ErrorType<void>
+
+
+/**
+ * @summary List audit activity for a drawing
+ */
+
+export function useListDrawingActivity<TData = Awaited<ReturnType<typeof listDrawingActivity>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDrawingActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDrawingActivityQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListDrawingCommentsUrl = (id: number,) => {
 
 

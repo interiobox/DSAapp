@@ -72,6 +72,10 @@ export async function listDrawingRows(filters: {
   search?: string;
   status?: string;
   discipline?: string;
+  project?: string;
+  revision?: string;
+  assignedTo?: string;
+  due?: "all" | "overdue" | "upcoming" | "none";
 }) {
   const conditions = [];
   conditions.push(isNull(drawingsTable.deletedAt));
@@ -83,11 +87,28 @@ export async function listDrawingRows(filters: {
         like(drawingsTable.title, search),
         like(drawingsTable.projectName, search),
         like(drawingsTable.author, search),
+        like(drawingsTable.discipline, search),
+        like(drawingsTable.revision, search),
+        like(drawingsTable.status, search),
+        like(drawingsTable.assignedTo, search),
       ),
     );
   }
   if (filters.status) conditions.push(eq(drawingsTable.status, filters.status));
   if (filters.discipline) conditions.push(eq(drawingsTable.discipline, filters.discipline));
+  if (filters.project) conditions.push(eq(drawingsTable.projectName, filters.project));
+  if (filters.revision) conditions.push(like(drawingsTable.revision, `%${filters.revision}%`));
+  if (filters.assignedTo === "unassigned") conditions.push(isNull(drawingsTable.assignedTo));
+  else if (filters.assignedTo) conditions.push(eq(drawingsTable.assignedTo, filters.assignedTo));
+  if (filters.due === "none") conditions.push(isNull(drawingsTable.dueDate));
+  if (filters.due === "overdue") {
+    conditions.push(sql`${drawingsTable.dueDate} < current_date()`);
+    conditions.push(sql`${drawingsTable.status} not in ('issued', 'superseded')`);
+  }
+  if (filters.due === "upcoming") {
+    conditions.push(sql`${drawingsTable.dueDate} >= current_date()`);
+    conditions.push(sql`${drawingsTable.status} not in ('issued', 'superseded')`);
+  }
   return db
     .select()
     .from(drawingsTable)

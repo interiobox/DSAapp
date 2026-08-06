@@ -1,9 +1,10 @@
 import * as React from "react"
 import { useRoute, Link, useLocation } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, CheckCircle, Clock, Send, Archive, Trash2, Calendar, FileText, Upload, Download, Loader2, History, MessageSquare, Pencil, FolderKanban } from "lucide-react"
+import { ArrowLeft, CheckCircle, Clock, Send, Archive, Trash2, Calendar, FileText, Upload, Download, Loader2, History, MessageSquare, Pencil, FolderKanban, ShieldCheck, Eye } from "lucide-react"
 
-import { useGetDrawing, useUpdateDrawing, useDeleteDrawing, useListProjects, useListCategories, useGetStorageStatus, getGetDrawingQueryKey, getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react"
+import { useGetDrawing, useUpdateDrawing, useDeleteDrawing, useListProjects, useListCategories, useGetStorageStatus, useListDrawingActivity, getGetDrawingQueryKey, getListDrawingActivityQueryKey, getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react"
+import type { Activity } from "@workspace/api-client-react"
 import type { DrawingStatus } from "@workspace/api-client-react"
 
 import { Button } from "@/components/ui/button"
@@ -67,6 +68,7 @@ export default function DrawingDetail() {
   const { data: projects, isLoading: projectsLoading } = useListProjects()
   const [isUploading, setIsUploading] = React.useState(false)
   const [deletingUploadId, setDeletingUploadId] = React.useState<number | null>(null)
+  const [selectedUploadId, setSelectedUploadId] = React.useState<number | null>(null)
   const [uploads, setUploads] = React.useState<DrawingUpload[]>([])
   const [comments, setComments] = React.useState<DrawingComment[]>([])
   const [commentText, setCommentText] = React.useState("")
@@ -79,10 +81,17 @@ export default function DrawingDetail() {
   const isAdmin = user?.role === "admin"
   const { data: categories } = useListCategories()
   const { data: storageStatus } = useGetStorageStatus()
+  const { data: auditActivity, isLoading: auditLoading } = useListDrawingActivity(id, {
+    query: { enabled: id > 0, queryKey: getListDrawingActivityQueryKey(id) },
+  })
 
   const loadUploads = React.useCallback(async () => {
     const response = await fetch(`/api/drawings/${id}/uploads`)
-    if (response.ok) setUploads(await response.json() as DrawingUpload[])
+    if (response.ok) {
+      const nextUploads = await response.json() as DrawingUpload[]
+      setUploads(nextUploads)
+      setSelectedUploadId((current) => current && nextUploads.some((upload) => upload.id === current) ? current : nextUploads[0]?.id ?? null)
+    }
   }, [id])
 
   const loadComments = React.useCallback(async () => {
@@ -315,6 +324,12 @@ export default function DrawingDetail() {
     }
   }
 
+  const selectedUpload = uploads.find((upload) => upload.id === selectedUploadId) ?? uploads[0]
+  const previewPath = selectedUpload?.filePath ?? drawing.attachmentPath
+  const previewName = selectedUpload?.fileName ?? drawing.attachmentName
+  const previewType = selectedUpload?.contentType ?? drawing.attachmentContentType
+  const activityItems = (auditActivity ?? []) as Activity[]
+
   const handleCommentEdit = async (item: DrawingComment) => {
     const comment = window.prompt("Edit comment", item.comment)
     if (comment === null || !comment.trim()) return
@@ -482,26 +497,33 @@ export default function DrawingDetail() {
               <CardHeader className="border-b pb-4">
                 <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <History className="w-4 h-4" />
-                  Upload History
+                  Drawing Versions
+                  {uploads.length > 0 && <Badge variant="outline" className="ml-auto">{uploads.length} version{uploads.length === 1 ? "" : "s"}</Badge>}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {uploads.length === 0 ? (
-                  <p className="p-6 text-sm text-muted-foreground">No uploads recorded yet.</p>
+                  <p className="p-6 text-sm text-muted-foreground">No versions recorded yet. Upload a drawing file to create the first version.</p>
                 ) : (
                   <div className="divide-y">
-                    {uploads.map((upload) => (
-                      <div key={upload.id} className="flex flex-col gap-2 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    {uploads.map((upload, index) => (
+                      <div key={upload.id} className={`flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between ${selectedUploadId === upload.id ? "bg-primary/5" : ""}`}>
                         <div className="min-w-0">
-                          <a className="truncate font-medium text-primary hover:underline" href={getStorageObjectUrl(upload.filePath) ?? "#"} target="_blank" rel="noreferrer">
-                            {upload.fileName}
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={selectedUploadId === upload.id ? "default" : "outline"}>V{uploads.length - index}</Badge>
+                            <button type="button" className="truncate text-left font-medium text-primary hover:underline" onClick={() => setSelectedUploadId(upload.id)}>
+                              {upload.fileName}
+                            </button>
+                          </div>
                           <p className="mt-1 text-xs text-muted-foreground">
                             Uploaded by <span className="font-medium text-foreground">{upload.uploadedBy}</span> · {formatDate(upload.uploadedAt)} · {(upload.fileSize / 1024 / 1024).toFixed(2)} MB
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <span className="font-mono text-xs text-muted-foreground">{upload.contentType}</span>
+                          <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setSelectedUploadId(upload.id)}>
+                            <Eye className="mr-1.5 h-3.5 w-3.5" />Preview
+                          </Button>
                           <Button
                             type="button"
                             variant="outline"
@@ -608,10 +630,48 @@ export default function DrawingDetail() {
               </CardHeader>
               <CardContent className="p-2">
                 <SheetPreview
-                  filePath={drawing.attachmentPath}
-                  fileName={drawing.attachmentName}
-                  contentType={drawing.attachmentContentType}
+                  filePath={previewPath}
+                  fileName={previewName}
+                  contentType={previewType}
                 />
+                {selectedUpload && (
+                  <p className="px-2 pb-2 pt-3 text-xs text-muted-foreground">
+                    Previewing <span className="font-medium text-foreground">{selectedUpload.fileName}</span> · Version {uploads.length - uploads.findIndex((upload) => upload.id === selectedUpload.id)}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="border-b pb-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4" />
+                  Audit history
+                  {activityItems.length > 0 && <Badge variant="outline" className="ml-auto">{activityItems.length}</Badge>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {auditLoading ? (
+                  <div className="space-y-3 p-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+                ) : activityItems.length === 0 ? (
+                  <p className="p-6 text-sm text-muted-foreground">No audit activity recorded yet.</p>
+                ) : (
+                  <div className="divide-y">
+                    {activityItems.map((activity) => (
+                      <div key={activity.id} className="flex gap-3 px-5 py-4">
+                        <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] capitalize">{activity.type.replace("drawing_", "").replace("_", " ")}</Badge>
+                            <span className="text-xs text-muted-foreground">{formatDate(activity.createdAt)}</span>
+                          </div>
+                          <p className="mt-1 text-sm text-foreground/80">{activity.message}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">By {activity.actor || "System"}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
