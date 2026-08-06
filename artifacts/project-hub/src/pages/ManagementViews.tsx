@@ -2,7 +2,7 @@ import * as React from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Bell, BarChart3, BookOpen, File, FileWarning, FolderOpen, UsersRound } from "lucide-react"
 
-import { getListNotificationsQueryKey, useGetDashboardSummary, useListActivity, useListChecklistTemplates, useListCategories, useListDrawings, useListNotifications, useListProjects, useListUsers, useMarkAllNotificationsRead, useMarkNotificationRead } from "@workspace/api-client-react"
+import { getListNotificationsQueryKey, useGetDashboardSummary, useListActivity, useListChecklistTemplates, useListCategories, useListDrawings, useListNotifications, useListProjects, useListUsers, useMarkAllNotificationsRead, useMarkNotificationRead, useMarkNotificationUnread } from "@workspace/api-client-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Link } from "wouter"
 import { formatDate, formatDateShort, getTodayInIST } from "@/lib/utils"
 import { getStorageObjectUrl } from "@/components/SheetPreview"
+import { useToast } from "@/hooks/use-toast"
 
 const statusLabel = (status: string) => status === "superseded" ? "Archived" : status.replace("_", " ")
 const statusClass = (status: string) => status === "approved" ? "text-emerald-700" : status === "in_review" ? "text-amber-700" : status === "issued" ? "text-blue-700" : ""
@@ -22,29 +23,76 @@ function Empty({ icon: Icon, text }: { icon: React.ElementType; text: string }) 
 
 export function Notifications() {
   const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const seenNotificationIds = React.useRef<Set<number> | null>(null)
+  const [filter, setFilter] = React.useState<"all" | "unread" | "chat" | "mentions" | "other">("all")
   const { data: notifications, isLoading } = useListNotifications({
     query: {
       queryKey: getListNotificationsQueryKey(),
+      refetchInterval: 15000,
     },
   })
   const markRead = useMarkNotificationRead()
+  const markUnread = useMarkNotificationUnread()
   const markAllRead = useMarkAllNotificationsRead()
   const { data: drawings } = useListDrawings()
   const assigned = (drawings ?? []).filter((drawing) => drawing.assignedTo)
   const dueSoon = assigned.filter((drawing) => drawing.dueDate && drawing.dueDate >= getTodayInIST()).slice(0, 5)
   const unread = (notifications ?? []).filter((notification) => !notification.readAt)
-   return <div className="flex h-full flex-1 flex-col overflow-hidden"><Header icon={Bell} title="Notifications" description="Chat messages, mentions, assignments, status changes, and drawing updates for you." /><div className="flex-1 overflow-auto p-3 sm:p-6"><div className="mx-auto max-w-5xl space-y-6">
-    <Card><CardHeader className="flex flex-row items-start justify-between gap-4 border-b"><div><CardTitle className="text-base">Your notifications <Badge variant="outline">{unread.length} unread</Badge></CardTitle><CardDescription>Updates refresh automatically while you work.</CardDescription></div><button type="button" className="text-xs font-medium text-primary hover:underline disabled:opacity-50" disabled={!unread.length || markAllRead.isPending} onClick={() => markAllRead.mutate(undefined, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }) } })}>Mark all read</button></CardHeader><CardContent className="p-0">{isLoading ? <Skeleton className="m-6 h-32" /> : notifications?.length ? <div className="divide-y">{notifications.map((item) => {
-      const content = <div className={`px-6 py-4 transition-colors ${item.readAt ? "" : "bg-primary/[0.04]"}`}><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-medium">{item.title}</p><p className="mt-1 text-sm text-muted-foreground">{item.message}</p><p className="mt-2 text-xs text-muted-foreground">{formatDate(item.createdAt)}</p></div>{!item.readAt && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}</div></div>
-      const markReadAndRefresh = () => {
-        if (!item.readAt) {
-          markRead.mutate({ id: item.id }, {
-            onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }) },
-          })
-        }
+  React.useEffect(() => {
+    if (!notifications) return
+    const currentIds = new Set(notifications.map((notification) => notification.id))
+    if (seenNotificationIds.current) {
+      const newNotifications = notifications.filter((notification) =>
+        !seenNotificationIds.current?.has(notification.id) && !notification.readAt,
+      )
+      if (newNotifications.length) {
+        const latest = newNotifications[0]
+        toast({
+          title: latest.title,
+          description: latest.message,
+        })
       }
-      return item.link ? <Link key={item.id} href={item.link} onClick={markReadAndRefresh}>{content}</Link> : <button type="button" key={item.id} className="block w-full text-left" onClick={markReadAndRefresh}>{content}</button>
-    })}</div> : <Empty icon={Bell} text="You are all caught up." />}</CardContent></Card>
+    }
+    seenNotificationIds.current = currentIds
+  }, [notifications, toast])
+  const getGroup = (type: string) => {
+    if (type.includes("mention")) return "mentions"
+    if (type.startsWith("chat")) return "chat"
+    return "other"
+  }
+  const visible = (notifications ?? []).filter((item) => {
+    if (filter === "all") return true
+    if (filter === "unread") return !item.readAt
+    return getGroup(item.type) === filter
+  })
+  const groups = [
+    { key: "chat", label: "Chat", items: visible.filter((item) => getGroup(item.type) === "chat") },
+    { key: "mentions", label: "Mentions", items: visible.filter((item) => getGroup(item.type) === "mentions") },
+    { key: "other", label: "Register & workflow", items: visible.filter((item) => getGroup(item.type) === "other") },
+  ].filter((group) => group.items.length)
+  const refresh = () => { void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }) }
+  const markItemRead = (item: NonNullable<typeof notifications>[number]) => {
+    if (!item.readAt) markRead.mutate({ id: item.id }, { onSuccess: refresh })
+  }
+  const toggleRead = (item: NonNullable<typeof notifications>[number]) => {
+    if (item.readAt) markUnread.mutate({ id: item.id }, { onSuccess: refresh })
+    else markRead.mutate({ id: item.id }, { onSuccess: refresh })
+  }
+  const filterOptions = [
+    { value: "all" as const, label: "All", count: notifications?.length ?? 0 },
+    { value: "unread" as const, label: "Unread", count: unread.length },
+    { value: "chat" as const, label: "Chat", count: (notifications ?? []).filter((item) => getGroup(item.type) === "chat").length },
+    { value: "mentions" as const, label: "Mentions", count: (notifications ?? []).filter((item) => getGroup(item.type) === "mentions").length },
+    { value: "other" as const, label: "Other", count: (notifications ?? []).filter((item) => getGroup(item.type) === "other").length },
+  ]
+  return <div className="flex h-full flex-1 flex-col overflow-hidden"><Header icon={Bell} title="Notifications" description="Chat messages, mentions, assignments, status changes, and drawing updates for you." /><div className="flex-1 overflow-auto p-3 sm:p-6"><div className="mx-auto max-w-5xl space-y-6">
+    <Card><CardHeader className="border-b"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="text-base">Your notifications <Badge variant="outline">{unread.length} unread</Badge></CardTitle><CardDescription>Updates refresh automatically while you work.</CardDescription></div><button type="button" className="text-left text-xs font-medium text-primary hover:underline disabled:opacity-50 sm:text-right" disabled={!unread.length || markAllRead.isPending} onClick={() => markAllRead.mutate(undefined, { onSuccess: refresh })}>Mark all read</button></div><div className="flex flex-wrap gap-2">
+      {filterOptions.map((option) => <button key={option.value} type="button" onClick={() => setFilter(option.value)} className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${filter === option.value ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>{option.label} <span className={filter === option.value ? "opacity-80" : "opacity-60"}>{option.count}</span></button>)}
+    </div></CardHeader><CardContent className="p-0">{isLoading ? <Skeleton className="m-6 h-32" /> : groups.length ? <div className="divide-y">{groups.map((group) => <section key={group.key}><div className="bg-muted/30 px-6 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{group.label}</div><div className="divide-y">{group.items.map((item) => {
+      const content = <div className={`min-w-0 flex-1 px-1 py-1 transition-colors ${item.readAt ? "" : "bg-primary/[0.04]"}`}><div className="flex items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{item.title}</p>{!item.readAt && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">New</span>}</div><p className="mt-1 text-sm text-muted-foreground">{item.message}</p><p className="mt-2 text-xs text-muted-foreground">{formatDate(item.createdAt)} · {item.type.replaceAll("_", " ")}</p></div>{!item.readAt && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary" />}</div></div>
+      return <div key={item.id} className={`flex items-center gap-3 px-5 py-3 sm:px-6 ${item.readAt ? "" : "bg-primary/[0.02]"}`}><div className="min-w-0 flex-1">{item.link ? <Link href={item.link} onClick={() => markItemRead(item)} className="block rounded-md p-1 hover:bg-muted/40">{content}</Link> : <button type="button" className="block w-full rounded-md text-left hover:bg-muted/40" onClick={() => markItemRead(item)}>{content}</button>}</div><button type="button" className="shrink-0 rounded-md border px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted" onClick={() => toggleRead(item)}>{item.readAt ? "Mark unread" : "Mark read"}</button></div>
+    })}</div></section>)}</div> : <Empty icon={Bell} text={filter === "unread" ? "You are all caught up." : "No notifications in this view."} />}</CardContent></Card>
     <Card><CardHeader className="border-b"><CardTitle className="text-base">Upcoming assigned deadlines</CardTitle></CardHeader><CardContent className="p-0">{dueSoon.length ? <div className="divide-y">{dueSoon.map((drawing) => <Link key={drawing.id} href={`/drawings/${drawing.id}`} className="block px-6 py-4 hover:bg-muted/40"><p className="font-medium">{drawing.title}</p><p className="mt-1 text-xs text-muted-foreground">Due {formatDateShort(drawing.dueDate)} · {drawing.assignedTo}</p></Link>)}</div> : <Empty icon={Bell} text="No upcoming assigned deadlines." />}</CardContent></Card>
   </div></div></div>
 }

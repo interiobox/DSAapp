@@ -11,3 +11,4 @@
 - [API health probe](api-health-probe.md) — keep the unauthenticated `/api` health response separate from protected application routes.
 - [IST display timezone](ist-display-timezone.md) — display logged timestamps and attendance check-in times in Asia/Kolkata with an explicit IST label.
 - [Chat room membership](chat-room-membership.md) — channel membership controls posting access, and chat attachments use private object storage paths.
+- [Chat enhancements](chat-enhancements.md) — unread/read positions, global search, direct rooms, message actions, and grouped notification controls use polling.

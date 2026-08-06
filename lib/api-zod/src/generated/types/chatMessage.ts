@@ -5,6 +5,7 @@
  * Architectural drawing management API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatReaction } from './chatReaction';
 
 export interface ChatMessage {
   id: number;
@@ -20,5 +21,12 @@ export interface ChatMessage {
   attachmentSize: number | null;
   /** @nullable */
   attachmentContentType: string | null;
+  /** @nullable */
+  replyToId: number | null;
+  /** @nullable */
+  editedAt: Date | null;
+  /** @nullable */
+  deletedAt: Date | null;
+  reactions: ChatReaction[];
   createdAt: Date;
 }

@@ -699,6 +699,14 @@ export interface GoogleDriveStatus {
   rootFolderId: string | null;
 }
 
+export type ChatChannelChannelType = typeof ChatChannelChannelType[keyof typeof ChatChannelChannelType];
+
+
+export const ChatChannelChannelType = {
+  channel: 'channel',
+  direct: 'direct',
+} as const;
+
 export interface ChatChannel {
   id: number;
   name: string;
@@ -708,12 +716,20 @@ export interface ChatChannel {
   createdAt: string;
   memberCount: number;
   joined: boolean;
+  unreadCount: number;
+  channelType: ChatChannelChannelType;
 }
 
 export interface ChatChannelInput {
   /** @minLength 1 */
   name: string;
   description?: string;
+}
+
+export interface ChatReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
 }
 
 export interface ChatMessage {
@@ -730,6 +746,13 @@ export interface ChatMessage {
   attachmentSize: number | null;
   /** @nullable */
   attachmentContentType: string | null;
+  /** @nullable */
+  replyToId: number | null;
+  /** @nullable */
+  editedAt: string | null;
+  /** @nullable */
+  deletedAt: string | null;
+  reactions: ChatReaction[];
   createdAt: string;
 }
 
@@ -739,6 +762,30 @@ export interface ChatMessageInput {
   attachmentName?: string;
   attachmentSize?: number;
   attachmentContentType?: string;
+  /** @minimum 1 */
+  replyToId?: number;
+}
+
+export interface ChatMessageUpdate {
+  /** @minLength 1 */
+  content: string;
+}
+
+export interface ChatReactionInput {
+  /**
+     * @minLength 1
+     * @maxLength 32
+     */
+  emoji: string;
+}
+
+export type ChatSearchResult = ChatMessage & {
+  channelName: string;
+};
+
+export interface ChatDirectMessageInput {
+  /** @minimum 1 */
+  userId: number;
 }
 
 export interface ChatChannelMember {
@@ -788,6 +835,17 @@ projectName: string;
 
 export type ListProjectChecklistsParams = {
 projectName?: string;
+};
+
+export type SearchChatMessagesParams = {
+/**
+ * @minLength 1
+ */
+query: string;
+/**
+ * @minimum 1
+ */
+channelId?: number;
 };
 
 export type ListAttendanceParams = {

@@ -848,7 +848,9 @@ export const ListChatChannelsResponseItem = zod.object({
   "createdBy": zod.number(),
   "createdAt": zod.coerce.date(),
   "memberCount": zod.number(),
-  "joined": zod.boolean()
+  "joined": zod.boolean(),
+  "unreadCount": zod.number(),
+  "channelType": zod.enum(['channel', 'direct'])
 })
 export const ListChatChannelsResponse = zod.array(ListChatChannelsResponseItem)
 
@@ -871,7 +873,9 @@ export const CreateChatChannelResponse = zod.object({
   "createdBy": zod.number(),
   "createdAt": zod.coerce.date(),
   "memberCount": zod.number(),
-  "joined": zod.boolean()
+  "joined": zod.boolean(),
+  "unreadCount": zod.number(),
+  "channelType": zod.enum(['channel', 'direct'])
 })
 
 
@@ -892,7 +896,9 @@ export const JoinChatChannelResponse = zod.object({
   "createdBy": zod.number(),
   "createdAt": zod.coerce.date(),
   "memberCount": zod.number(),
-  "joined": zod.boolean()
+  "joined": zod.boolean(),
+  "unreadCount": zod.number(),
+  "channelType": zod.enum(['channel', 'direct'])
 })
 
 
@@ -913,7 +919,9 @@ export const LeaveChatChannelResponse = zod.object({
   "createdBy": zod.number(),
   "createdAt": zod.coerce.date(),
   "memberCount": zod.number(),
-  "joined": zod.boolean()
+  "joined": zod.boolean(),
+  "unreadCount": zod.number(),
+  "channelType": zod.enum(['channel', 'direct'])
 })
 
 
@@ -957,6 +965,14 @@ export const ListChatMessagesResponseItem = zod.object({
   "attachmentName": zod.string().nullable(),
   "attachmentSize": zod.number().nullable(),
   "attachmentContentType": zod.string().nullable(),
+  "replyToId": zod.number().nullable(),
+  "editedAt": zod.coerce.date().nullable(),
+  "deletedAt": zod.coerce.date().nullable(),
+  "reactions": zod.array(zod.object({
+  "emoji": zod.string(),
+  "count": zod.number(),
+  "reacted": zod.boolean()
+})),
   "createdAt": zod.coerce.date()
 })
 export const ListChatMessagesResponse = zod.array(ListChatMessagesResponseItem)
@@ -972,12 +988,16 @@ export const CreateChatMessageParams = zod.object({
   "channelId": zod.coerce.number().min(1)
 })
 
+
+
+
 export const CreateChatMessageBody = zod.object({
   "content": zod.string().optional(),
   "attachmentPath": zod.string().optional(),
   "attachmentName": zod.string().optional(),
   "attachmentSize": zod.number().optional(),
-  "attachmentContentType": zod.string().optional()
+  "attachmentContentType": zod.string().optional(),
+  "replyToId": zod.number().min(1).optional()
 })
 
 export const CreateChatMessageResponse = zod.object({
@@ -990,7 +1010,166 @@ export const CreateChatMessageResponse = zod.object({
   "attachmentName": zod.string().nullable(),
   "attachmentSize": zod.number().nullable(),
   "attachmentContentType": zod.string().nullable(),
+  "replyToId": zod.number().nullable(),
+  "editedAt": zod.coerce.date().nullable(),
+  "deletedAt": zod.coerce.date().nullable(),
+  "reactions": zod.array(zod.object({
+  "emoji": zod.string(),
+  "count": zod.number(),
+  "reacted": zod.boolean()
+})),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark a chat channel read for the signed-in user
+ */
+
+
+
+export const MarkChatChannelReadParams = zod.object({
+  "channelId": zod.coerce.number().min(1)
+})
+
+export const MarkChatChannelReadResponse = zod.void()
+
+
+/**
+ * @summary Search messages across joined chat channels
+ */
+
+
+
+
+export const SearchChatMessagesQueryParams = zod.object({
+  "query": zod.coerce.string().min(1),
+  "channelId": zod.coerce.number().min(1).optional()
+})
+
+export const SearchChatMessagesResponseItem = zod.object({
+  "id": zod.number(),
+  "channelId": zod.number(),
+  "authorId": zod.number(),
+  "authorName": zod.string(),
+  "content": zod.string(),
+  "attachmentPath": zod.string().nullable(),
+  "attachmentName": zod.string().nullable(),
+  "attachmentSize": zod.number().nullable(),
+  "attachmentContentType": zod.string().nullable(),
+  "replyToId": zod.number().nullable(),
+  "editedAt": zod.coerce.date().nullable(),
+  "deletedAt": zod.coerce.date().nullable(),
+  "reactions": zod.array(zod.object({
+  "emoji": zod.string(),
+  "count": zod.number(),
+  "reacted": zod.boolean()
+})),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "channelName": zod.string()
+}))
+export const SearchChatMessagesResponse = zod.array(SearchChatMessagesResponseItem)
+
+
+/**
+ * @summary Edit a chat message
+ */
+
+
+
+export const UpdateChatMessageParams = zod.object({
+  "messageId": zod.coerce.number().min(1)
+})
+
+
+
+
+export const UpdateChatMessageBody = zod.object({
+  "content": zod.string().min(1)
+})
+
+export const UpdateChatMessageResponse = zod.object({
+  "id": zod.number(),
+  "channelId": zod.number(),
+  "authorId": zod.number(),
+  "authorName": zod.string(),
+  "content": zod.string(),
+  "attachmentPath": zod.string().nullable(),
+  "attachmentName": zod.string().nullable(),
+  "attachmentSize": zod.number().nullable(),
+  "attachmentContentType": zod.string().nullable(),
+  "replyToId": zod.number().nullable(),
+  "editedAt": zod.coerce.date().nullable(),
+  "deletedAt": zod.coerce.date().nullable(),
+  "reactions": zod.array(zod.object({
+  "emoji": zod.string(),
+  "count": zod.number(),
+  "reacted": zod.boolean()
+})),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a chat message
+ */
+
+
+
+export const DeleteChatMessageParams = zod.object({
+  "messageId": zod.coerce.number().min(1)
+})
+
+export const DeleteChatMessageResponse = zod.void()
+
+
+/**
+ * @summary Toggle a reaction on a chat message
+ */
+
+
+
+export const ToggleChatMessageReactionParams = zod.object({
+  "messageId": zod.coerce.number().min(1)
+})
+
+export const toggleChatMessageReactionBodyEmojiMax = 32;
+
+
+
+export const ToggleChatMessageReactionBody = zod.object({
+  "emoji": zod.string().min(1).max(toggleChatMessageReactionBodyEmojiMax)
+})
+
+export const ToggleChatMessageReactionResponseItem = zod.object({
+  "emoji": zod.string(),
+  "count": zod.number(),
+  "reacted": zod.boolean()
+})
+export const ToggleChatMessageReactionResponse = zod.array(ToggleChatMessageReactionResponseItem)
+
+
+/**
+ * @summary Open a direct chat with another user
+ */
+
+
+
+export const CreateChatDirectMessageBody = zod.object({
+  "userId": zod.number().min(1)
+})
+
+export const CreateChatDirectMessageResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "createdBy": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "memberCount": zod.number(),
+  "joined": zod.boolean(),
+  "unreadCount": zod.number(),
+  "channelType": zod.enum(['channel', 'direct'])
 })
 
 
@@ -1839,6 +2018,28 @@ export const MarkNotificationReadParams = zod.object({
 })
 
 export const MarkNotificationReadResponse = zod.object({
+  "id": zod.number(),
+  "recipientId": zod.number(),
+  "type": zod.string(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "link": zod.string().nullable(),
+  "readAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark a notification unread
+ */
+
+
+
+export const MarkNotificationUnreadParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const MarkNotificationUnreadResponse = zod.object({
   "id": zod.number(),
   "recipientId": zod.number(),
   "type": zod.string(),

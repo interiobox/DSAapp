@@ -832,6 +832,146 @@ paths:
                 $ref: "#/components/schemas/ChatMessage"
         "404":
           description: Chat channel not found
+  /chat/channels/{channelId}/read:
+    post:
+      operationId: markChatChannelRead
+      tags: [chat]
+      summary: Mark a chat channel read for the signed-in user
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "204":
+          description: Channel marked read
+        "404":
+          description: Chat channel not found
+  /chat/search:
+    get:
+      operationId: searchChatMessages
+      tags: [chat]
+      summary: Search messages across joined chat channels
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: channelId
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Matching chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatSearchResult"
+  /chat/messages/{messageId}:
+    patch:
+      operationId: updateChatMessage
+      tags: [chat]
+      summary: Edit a chat message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageUpdate"
+      responses:
+        "200":
+          description: Updated chat message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "403":
+          description: Only the author or an administrator can edit this message
+        "404":
+          description: Chat message not found
+    delete:
+      operationId: deleteChatMessage
+      tags: [chat]
+      summary: Delete a chat message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "204":
+          description: Chat message deleted
+        "403":
+          description: Only the author or an administrator can delete this message
+        "404":
+          description: Chat message not found
+  /chat/messages/{messageId}/reactions:
+    post:
+      operationId: toggleChatMessageReaction
+      tags: [chat]
+      summary: Toggle a reaction on a chat message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatReactionInput"
+      responses:
+        "200":
+          description: Updated reaction summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatReaction"
+        "404":
+          description: Chat message not found
+  /chat/direct:
+    post:
+      operationId: createChatDirectMessage
+      tags: [chat]
+      summary: Open a direct chat with another user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatDirectMessageInput"
+      responses:
+        "200":
+          description: Direct chat channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatChannel"
+        "404":
+          description: User not found
   /users:
     get:
       operationId: listUsers
@@ -1514,6 +1654,27 @@ paths:
       responses:
         "200":
           description: Read notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "404":
+          description: Notification not found
+  /notifications/{id}/unread:
+    patch:
+      operationId: markNotificationUnread
+      tags: [notifications]
+      summary: Mark a notification unread
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+            minimum: 1
+      responses:
+        "200":
+          description: Updated notification
           content:
             application/json:
               schema:
@@ -2518,7 +2679,12 @@ components:
           type: number
         joined:
           type: boolean
-      required: [id, name, description, createdBy, createdAt, memberCount, joined]
+        unreadCount:
+          type: number
+        channelType:
+          type: string
+          enum: [channel, direct]
+      required: [id, name, description, createdBy, createdAt, memberCount, joined, unreadCount, channelType]
     ChatChannelInput:
       type: object
       properties:
@@ -2549,10 +2715,22 @@ components:
           type: ["number", "null"]
         attachmentContentType:
           type: ["string", "null"]
+        replyToId:
+          type: ["number", "null"]
+        editedAt:
+          type: ["string", "null"]
+          format: date-time
+        deletedAt:
+          type: ["string", "null"]
+          format: date-time
+        reactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatReaction"
         createdAt:
           type: string
           format: date-time
-      required: [id, channelId, authorId, authorName, content, attachmentPath, attachmentName, attachmentSize, attachmentContentType, createdAt]
+      required: [id, channelId, authorId, authorName, content, attachmentPath, attachmentName, attachmentSize, attachmentContentType, replyToId, editedAt, deletedAt, reactions, createdAt]
     ChatMessageInput:
       type: object
       properties:
@@ -2566,7 +2744,50 @@ components:
           type: number
         attachmentContentType:
           type: string
+        replyToId:
+          type: number
+          minimum: 1
       required: []
+    ChatMessageUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+      required: [content]
+    ChatReaction:
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: number
+        reacted:
+          type: boolean
+      required: [emoji, count, reacted]
+    ChatReactionInput:
+      type: object
+      properties:
+        emoji:
+          type: string
+          minLength: 1
+          maxLength: 32
+      required: [emoji]
+    ChatSearchResult:
+      allOf:
+        - $ref: "#/components/schemas/ChatMessage"
+        - type: object
+          properties:
+            channelName:
+              type: string
+          required: [channelName]
+    ChatDirectMessageInput:
+      type: object
+      properties:
+        userId:
+          type: number
+          minimum: 1
+      required: [userId]
     ChatChannelMember:
       type: object
       properties:

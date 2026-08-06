@@ -77,7 +77,7 @@ export async function notifyChatChannelMembers(
       type: "chat_message",
       title: `New message in #${channelName}`,
       message: `${senderName}: ${preview}`,
-      link: "/chat",
+       link: `/chat?channelId=${channelId}`,
     })));
 }
 

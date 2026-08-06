@@ -5,6 +5,7 @@
  * Architectural drawing management API
  * OpenAPI spec version: 0.1.0
  */
+import type { ChatChannelChannelType } from './chatChannelChannelType';
 
 export interface ChatChannel {
   id: number;
@@ -15,4 +16,6 @@ export interface ChatChannel {
   createdAt: Date;
   memberCount: number;
   joined: boolean;
+  unreadCount: number;
+  channelType: ChatChannelChannelType;
 }

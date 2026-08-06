@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, notificationsTable } from "@workspace/db";
 import { ListNotificationsResponse, MarkNotificationReadParams } from "@workspace/api-zod";
 import { listUserNotifications, markNotificationRead } from "../lib/notifications";
@@ -25,6 +25,25 @@ router.patch("/notifications/:id/read", async (req, res): Promise<void> => {
     return;
   }
   res.json(notification);
+});
+
+router.patch("/notifications/:id/unread", async (req, res): Promise<void> => {
+  const params = MarkNotificationReadParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const user = requireCurrentUser(req);
+  const [notification] = await db.select().from(notificationsTable).where(and(
+    eq(notificationsTable.id, params.data.id),
+    eq(notificationsTable.recipientId, user.id),
+  )).limit(1);
+  if (!notification) {
+    res.status(404).json({ error: "Notification not found" });
+    return;
+  }
+  await db.update(notificationsTable).set({ readAt: null }).where(eq(notificationsTable.id, notification.id));
+  res.json({ ...notification, readAt: null });
 });
 
 router.post("/notifications/read-all", async (req, res): Promise<void> => {

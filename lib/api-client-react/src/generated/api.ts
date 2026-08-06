@@ -33,8 +33,13 @@ import type {
   ChatChannel,
   ChatChannelInput,
   ChatChannelMember,
+  ChatDirectMessageInput,
   ChatMessage,
   ChatMessageInput,
+  ChatMessageUpdate,
+  ChatReaction,
+  ChatReactionInput,
+  ChatSearchResult,
   ChecklistItemUpdate,
   ChecklistTemplate,
   ChecklistTemplateInput,
@@ -79,6 +84,7 @@ import type {
   ProjectNoteUpdate,
   RecycleBinEntry,
   RestoreRecycleBinEntry200,
+  SearchChatMessagesParams,
   UploadUrlRequest,
   UploadUrlResponse,
   User
@@ -3290,6 +3296,447 @@ export const useCreateChatMessage = <TError = ErrorType<void>,
       return useMutation(getCreateChatMessageMutationOptions(options));
     }
 
+export const getMarkChatChannelReadUrl = (channelId: number,) => {
+
+
+
+
+  return `/api/chat/channels/${channelId}/read`
+}
+
+/**
+ * @summary Mark a chat channel read for the signed-in user
+ */
+export const markChatChannelRead = async (channelId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getMarkChatChannelReadUrl(channelId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkChatChannelReadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markChatChannelRead>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markChatChannelRead>>, TError,{channelId: number}, TContext> => {
+
+const mutationKey = ['markChatChannelRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markChatChannelRead>>, {channelId: number}> = (props) => {
+          const {channelId} = props ?? {};
+
+          return  markChatChannelRead(channelId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkChatChannelReadMutationResult = NonNullable<Awaited<ReturnType<typeof markChatChannelRead>>>
+
+    export type MarkChatChannelReadMutationError = ErrorType<void>
+
+    /**
+ * @summary Mark a chat channel read for the signed-in user
+ */
+export const useMarkChatChannelRead = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markChatChannelRead>>, TError,{channelId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markChatChannelRead>>,
+        TError,
+        {channelId: number},
+        TContext
+      > => {
+      return useMutation(getMarkChatChannelReadMutationOptions(options));
+    }
+
+export const getSearchChatMessagesUrl = (params: SearchChatMessagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/chat/search?${stringifiedParams}` : `/api/chat/search`
+}
+
+/**
+ * @summary Search messages across joined chat channels
+ */
+export const searchChatMessages = async (params: SearchChatMessagesParams, options?: Parameters<typeof customFetch>[1]): Promise<ChatSearchResult[]> => {
+
+  return customFetch<ChatSearchResult[]>(getSearchChatMessagesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchChatMessagesQueryKey = (params?: SearchChatMessagesParams,) => {
+    return [
+    `/api/chat/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchChatMessagesQueryOptions = <TData = Awaited<ReturnType<typeof searchChatMessages>>, TError = ErrorType<unknown>>(params: SearchChatMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchChatMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchChatMessagesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchChatMessages>>> = ({ signal }) => searchChatMessages(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchChatMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchChatMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof searchChatMessages>>>
+export type SearchChatMessagesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Search messages across joined chat channels
+ */
+
+export function useSearchChatMessages<TData = Awaited<ReturnType<typeof searchChatMessages>>, TError = ErrorType<unknown>>(
+ params: SearchChatMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchChatMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchChatMessagesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateChatMessageUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/chat/messages/${messageId}`
+}
+
+/**
+ * @summary Edit a chat message
+ */
+export const updateChatMessage = async (messageId: number,
+    chatMessageUpdate: ChatMessageUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ChatMessage> => {
+
+  return customFetch<ChatMessage>(getUpdateChatMessageUrl(messageId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatMessageUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateChatMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateChatMessage>>, TError,{messageId: number;data: BodyType<ChatMessageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateChatMessage>>, TError,{messageId: number;data: BodyType<ChatMessageUpdate>}, TContext> => {
+
+const mutationKey = ['updateChatMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateChatMessage>>, {messageId: number;data: BodyType<ChatMessageUpdate>}> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  updateChatMessage(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof updateChatMessage>>>
+    export type UpdateChatMessageMutationBody = BodyType<ChatMessageUpdate>
+    export type UpdateChatMessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Edit a chat message
+ */
+export const useUpdateChatMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateChatMessage>>, TError,{messageId: number;data: BodyType<ChatMessageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateChatMessage>>,
+        TError,
+        {messageId: number;data: BodyType<ChatMessageUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateChatMessageMutationOptions(options));
+    }
+
+export const getDeleteChatMessageUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/chat/messages/${messageId}`
+}
+
+/**
+ * @summary Delete a chat message
+ */
+export const deleteChatMessage = async (messageId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteChatMessageUrl(messageId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteChatMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteChatMessage>>, TError,{messageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteChatMessage>>, TError,{messageId: number}, TContext> => {
+
+const mutationKey = ['deleteChatMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteChatMessage>>, {messageId: number}> = (props) => {
+          const {messageId} = props ?? {};
+
+          return  deleteChatMessage(messageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteChatMessageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteChatMessage>>>
+
+    export type DeleteChatMessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a chat message
+ */
+export const useDeleteChatMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteChatMessage>>, TError,{messageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteChatMessage>>,
+        TError,
+        {messageId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteChatMessageMutationOptions(options));
+    }
+
+export const getToggleChatMessageReactionUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/chat/messages/${messageId}/reactions`
+}
+
+/**
+ * @summary Toggle a reaction on a chat message
+ */
+export const toggleChatMessageReaction = async (messageId: number,
+    chatReactionInput: ChatReactionInput, options?: Parameters<typeof customFetch>[1]): Promise<ChatReaction[]> => {
+
+  return customFetch<ChatReaction[]>(getToggleChatMessageReactionUrl(messageId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatReactionInput)
+  }
+);}
+
+
+
+
+
+export const getToggleChatMessageReactionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof toggleChatMessageReaction>>, TError,{messageId: number;data: BodyType<ChatReactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof toggleChatMessageReaction>>, TError,{messageId: number;data: BodyType<ChatReactionInput>}, TContext> => {
+
+const mutationKey = ['toggleChatMessageReaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof toggleChatMessageReaction>>, {messageId: number;data: BodyType<ChatReactionInput>}> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  toggleChatMessageReaction(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ToggleChatMessageReactionMutationResult = NonNullable<Awaited<ReturnType<typeof toggleChatMessageReaction>>>
+    export type ToggleChatMessageReactionMutationBody = BodyType<ChatReactionInput>
+    export type ToggleChatMessageReactionMutationError = ErrorType<void>
+
+    /**
+ * @summary Toggle a reaction on a chat message
+ */
+export const useToggleChatMessageReaction = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof toggleChatMessageReaction>>, TError,{messageId: number;data: BodyType<ChatReactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof toggleChatMessageReaction>>,
+        TError,
+        {messageId: number;data: BodyType<ChatReactionInput>},
+        TContext
+      > => {
+      return useMutation(getToggleChatMessageReactionMutationOptions(options));
+    }
+
+export const getCreateChatDirectMessageUrl = () => {
+
+
+
+
+  return `/api/chat/direct`
+}
+
+/**
+ * @summary Open a direct chat with another user
+ */
+export const createChatDirectMessage = async (chatDirectMessageInput: ChatDirectMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<ChatChannel> => {
+
+  return customFetch<ChatChannel>(getCreateChatDirectMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatDirectMessageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateChatDirectMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChatDirectMessage>>, TError,{data: BodyType<ChatDirectMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createChatDirectMessage>>, TError,{data: BodyType<ChatDirectMessageInput>}, TContext> => {
+
+const mutationKey = ['createChatDirectMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createChatDirectMessage>>, {data: BodyType<ChatDirectMessageInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createChatDirectMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateChatDirectMessageMutationResult = NonNullable<Awaited<ReturnType<typeof createChatDirectMessage>>>
+    export type CreateChatDirectMessageMutationBody = BodyType<ChatDirectMessageInput>
+    export type CreateChatDirectMessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Open a direct chat with another user
+ */
+export const useCreateChatDirectMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChatDirectMessage>>, TError,{data: BodyType<ChatDirectMessageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createChatDirectMessage>>,
+        TError,
+        {data: BodyType<ChatDirectMessageInput>},
+        TContext
+      > => {
+      return useMutation(getCreateChatDirectMessageMutationOptions(options));
+    }
+
 export const getListUsersUrl = () => {
 
 
@@ -6369,6 +6816,77 @@ export const useMarkNotificationRead = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getMarkNotificationReadMutationOptions(options));
+    }
+
+export const getMarkNotificationUnreadUrl = (id: number,) => {
+
+
+
+
+  return `/api/notifications/${id}/unread`
+}
+
+/**
+ * @summary Mark a notification unread
+ */
+export const markNotificationUnread = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Notification> => {
+
+  return customFetch<Notification>(getMarkNotificationUnreadUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkNotificationUnreadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markNotificationUnread>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markNotificationUnread>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['markNotificationUnread'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markNotificationUnread>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  markNotificationUnread(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkNotificationUnreadMutationResult = NonNullable<Awaited<ReturnType<typeof markNotificationUnread>>>
+
+    export type MarkNotificationUnreadMutationError = ErrorType<void>
+
+    /**
+ * @summary Mark a notification unread
+ */
+export const useMarkNotificationUnread = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markNotificationUnread>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markNotificationUnread>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getMarkNotificationUnreadMutationOptions(options));
     }
 
 export const getMarkAllNotificationsReadUrl = () => {

@@ -12,4 +12,6 @@ export interface ChatMessageInput {
   attachmentName?: string;
   attachmentSize?: number;
   attachmentContentType?: string;
+  /** @minimum 1 */
+  replyToId?: number;
 }

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import {
   Bell,
   Download,
+  Edit3,
   FileText,
   Hash,
   Loader2,
@@ -12,8 +13,11 @@ import {
   MoreHorizontal,
   Paperclip,
   Plus,
+  Reply,
   Search,
   Send,
+  Smile,
+  Trash2,
   Users,
   X,
 } from "lucide-react"
@@ -22,13 +26,21 @@ import {
   getListChatChannelsQueryKey,
   getListChatChannelMembersQueryKey,
   getListChatMessagesQueryKey,
+  getListUsersQueryKey,
   useCreateChatChannel,
+  useCreateChatDirectMessage,
   useCreateChatMessage,
+  useDeleteChatMessage,
   useJoinChatChannel,
   useLeaveChatChannel,
   useListChatChannelMembers,
   useListChatChannels,
   useListChatMessages,
+  useListUsers,
+  useMarkChatChannelRead,
+  useSearchChatMessages,
+  useToggleChatMessageReaction,
+  useUpdateChatMessage,
 } from "@workspace/api-client-react"
 import type { ChatChannel, ChatMessage } from "@workspace/api-client-react"
 import { usePortalAuth } from "@/App"
@@ -71,12 +83,21 @@ export default function ChatPage() {
   const { user } = usePortalAuth()
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null)
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(() => {
+    const value = new URLSearchParams(window.location.search).get("channelId")
+    return value ? Number(value) : null
+  })
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false)
+  const [isDirectDialogOpen, setIsDirectDialogOpen] = useState(false)
   const [channelName, setChannelName] = useState("")
   const [channelDescription, setChannelDescription] = useState("")
   const [message, setMessage] = useState("")
   const [messageSearch, setMessageSearch] = useState("")
+  const [isGlobalSearch, setIsGlobalSearch] = useState(false)
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
+  const [editingContent, setEditingContent] = useState("")
+  const [directUserId, setDirectUserId] = useState<number | null>(null)
   const [attachment, setAttachment] = useState<{
     path: string
     name: string
@@ -104,6 +125,10 @@ export default function ChatPage() {
     },
   })
   const messages = messagesQuery.data ?? []
+  const globalSearchQuery = useSearchChatMessages(
+    { query: messageSearch.trim() || "x" },
+    { query: { enabled: isGlobalSearch && messageSearch.trim().length > 0, queryKey: ["/api/chat/search", messageSearch.trim()] } },
+  )
   const membersQuery = useListChatChannelMembers(activeChannelId, {
     query: {
       enabled: Boolean(activeChannel),
@@ -118,9 +143,15 @@ export default function ChatPage() {
   }, [messageSearch, messages])
 
   const createChannel = useCreateChatChannel()
+  const createDirectMessage = useCreateChatDirectMessage()
   const createMessage = useCreateChatMessage()
+  const updateMessage = useUpdateChatMessage()
+  const deleteMessage = useDeleteChatMessage()
+  const toggleReaction = useToggleChatMessageReaction()
   const joinChannel = useJoinChatChannel()
   const leaveChannel = useLeaveChatChannel()
+  const markChannelRead = useMarkChatChannelRead()
+  const usersQuery = useListUsers({ query: { enabled: isDirectDialogOpen, queryKey: getListUsersQueryKey() } })
 
   useEffect(() => {
     if (!selectedChannelId && channels[0]) setSelectedChannelId(channels[0].id)
@@ -131,6 +162,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     setMessageSearch("")
+    setReplyTo(null)
+    setEditingMessageId(null)
+    if (activeChannelId) {
+      markChannelRead.mutate({ channelId: activeChannelId }, {
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() }),
+      })
+    }
   }, [activeChannelId])
 
   useEffect(() => {
@@ -150,14 +188,63 @@ export default function ChatPage() {
         attachmentName: attachment?.name,
         attachmentSize: attachment?.size,
         attachmentContentType: attachment?.contentType,
+        replyToId: replyTo?.id,
       },
     }, {
       onSuccess: (created) => {
         setMessage("")
         setAttachment(null)
+        setReplyTo(null)
         queryClient.setQueryData<ChatMessage[]>(getListChatMessagesQueryKey(activeChannel.id), (current) => [...(current ?? []), created])
       },
       onError: (error) => toast({ title: "Message could not be sent", description: error instanceof Error ? error.message : "Please try again." }),
+    })
+  }
+
+  function beginEdit(item: ChatMessage) {
+    setEditingMessageId(item.id)
+    setEditingContent(item.content)
+  }
+
+  function saveEdit(item: ChatMessage) {
+    const content = editingContent.trim()
+    if (!content) return
+    updateMessage.mutate({ messageId: item.id, data: { content } }, {
+      onSuccess: (updated) => {
+        queryClient.setQueryData<ChatMessage[]>(getListChatMessagesQueryKey(item.channelId), (current) => (current ?? []).map((entry) => entry.id === updated.id ? updated : entry))
+        setEditingMessageId(null)
+        setEditingContent("")
+      },
+      onError: (error) => toast({ title: "Message could not be edited", description: error instanceof Error ? error.message : "Please try again." }),
+    })
+  }
+
+  function removeMessage(item: ChatMessage) {
+    if (!window.confirm("Delete this message?")) return
+    deleteMessage.mutate({ messageId: item.id }, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListChatMessagesQueryKey(item.channelId) }),
+      onError: (error) => toast({ title: "Message could not be deleted", description: error instanceof Error ? error.message : "Please try again." }),
+    })
+  }
+
+  function reactToMessage(item: ChatMessage, emoji: string) {
+    toggleReaction.mutate({ messageId: item.id, data: { emoji } }, {
+      onSuccess: (reactions) => {
+        queryClient.setQueryData<ChatMessage[]>(getListChatMessagesQueryKey(item.channelId), (current) => (current ?? []).map((entry) => entry.id === item.id ? { ...entry, reactions } : entry))
+      },
+    })
+  }
+
+  function submitDirectMessage() {
+    if (!directUserId) return
+    createDirectMessage.mutate({ data: { userId: directUserId } }, {
+      onSuccess: (channel) => {
+        setIsDirectDialogOpen(false)
+        setDirectUserId(null)
+        setSelectedChannelId(channel.id)
+        queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
+      },
+      onError: (error) => toast({ title: "Direct chat could not be opened", description: error instanceof Error ? error.message : "Please try again." }),
     })
   }
 
@@ -264,7 +351,7 @@ export default function ChatPage() {
               <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 aria-label="Search messages"
-                placeholder="Search messages"
+                 placeholder={isGlobalSearch ? "Search all channels" : "Search this channel"}
                 value={messageSearch}
                 onChange={(event) => setMessageSearch(event.target.value)}
                 className="h-9 w-full pl-9 pr-8 sm:w-52 lg:w-64"
@@ -282,6 +369,9 @@ export default function ChatPage() {
                 </button>
               )}
             </div>
+             <Button variant={isGlobalSearch ? "default" : "outline"} size="icon" className="hidden sm:inline-flex" title="Toggle global chat search" onClick={() => setIsGlobalSearch((value) => !value)} data-testid="button-toggle-global-chat-search">
+               <Search className="h-4 w-4" />
+             </Button>
              <Button asChild variant="outline" size="icon" className="hidden sm:inline-flex" title="Notifications" data-testid="button-chat-notifications">
                <Link href="/notifications"><Bell className="h-4 w-4" /></Link>
              </Button>
@@ -296,9 +386,14 @@ export default function ChatPage() {
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Workspace</p>
               <p className="mt-1 truncate text-sm font-semibold">Design Sense Architects</p>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsChannelDialogOpen(true)} title="Create channel" data-testid="button-create-channel">
-              <Plus className="h-4 w-4" />
-            </Button>
+             <div className="flex items-center gap-1">
+               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsDirectDialogOpen(true)} title="Start a direct message" data-testid="button-create-direct-chat">
+                 <MessageSquare className="h-4 w-4" />
+               </Button>
+               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsChannelDialogOpen(true)} title="Create channel" data-testid="button-create-channel">
+                 <Plus className="h-4 w-4" />
+               </Button>
+             </div>
           </div>
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-5 p-3">
@@ -318,8 +413,9 @@ export default function ChatPage() {
                       className={cn("flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors", activeChannel?.id === channel.id ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/70 hover:text-foreground")}
                       data-testid={`button-channel-${channel.id}`}
                     >
-                      <Hash className={cn("h-4 w-4 shrink-0", activeChannel?.id === channel.id ? "text-primary" : "text-muted-foreground/70")} />
-                      <span className="truncate">{channel.name}</span>
+                       {channel.channelType === "direct" ? <MessageSquare className={cn("h-4 w-4 shrink-0", activeChannel?.id === channel.id ? "text-primary" : "text-muted-foreground/70")} /> : <Hash className={cn("h-4 w-4 shrink-0", activeChannel?.id === channel.id ? "text-primary" : "text-muted-foreground/70")} />}
+                       <span className="min-w-0 flex-1 truncate">{channel.channelType === "direct" ? channel.description?.replace("Direct conversation with ", "") || "Direct message" : channel.name}</span>
+                       {channel.unreadCount > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">{channel.unreadCount > 99 ? "99+" : channel.unreadCount}</span>}
                     </button>
                   )) : (
                     <p className="px-2 text-xs text-muted-foreground">No channels yet.</p>
@@ -414,8 +510,22 @@ export default function ChatPage() {
                       Showing {filteredMessages.length} {filteredMessages.length === 1 ? "message" : "messages"} matching “{messageSearch}”
                     </p>
                   )}
-                  {filteredMessages.map((item, index) => (
-                    <MessageRow key={item.id} message={item} previous={messageSearch ? undefined : filteredMessages[index - 1]} />
+                   {filteredMessages.map((item, index) => (
+                     <MessageRow
+                       key={item.id}
+                       message={item}
+                       previous={messageSearch ? undefined : filteredMessages[index - 1]}
+                       currentUserId={user?.id}
+                       isAdmin={user?.role === "admin"}
+                       editingMessageId={editingMessageId}
+                       editingContent={editingContent}
+                       onEditingContentChange={setEditingContent}
+                       onBeginEdit={beginEdit}
+                       onSaveEdit={saveEdit}
+                       onDelete={removeMessage}
+                       onReply={setReplyTo}
+                       onReact={reactToMessage}
+                     />
                   ))}
                   <div ref={messageEndRef} />
                 </div>
@@ -441,6 +551,13 @@ export default function ChatPage() {
 
           <div className="flex-none border-t bg-white px-4 py-3 sm:px-6">
             <div className="mx-auto max-w-4xl">
+               {replyTo && (
+                 <div className="mb-2 flex items-center gap-2 rounded-md border bg-primary/[0.04] px-3 py-2 text-xs">
+                   <Reply className="h-3.5 w-3.5 text-primary" />
+                   <span className="min-w-0 flex-1 truncate">Replying to <strong>{replyTo.authorName}</strong>: {replyTo.content || replyTo.attachmentName}</span>
+                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="h-3.5 w-3.5" /></Button>
+                 </div>
+               )}
               <div className="flex items-end gap-2 rounded-xl border bg-[#f7f8fa] p-2 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10">
                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelected} />
                  <Button variant="ghost" size="icon" className="mb-0.5 h-9 w-9 shrink-0 text-muted-foreground" title={activeChannel?.joined ? "Attach a file" : "Join this channel to attach files"} onClick={() => fileInputRef.current?.click()} disabled={!activeChannel?.joined || isUploading} data-testid="button-attach-chat-file">
@@ -531,13 +648,89 @@ export default function ChatPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={isDirectDialogOpen} onOpenChange={setIsDirectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start a direct message</DialogTitle>
+            <DialogDescription>Choose a teammate to open a private conversation.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 space-y-1 overflow-y-auto py-2">
+            {(usersQuery.data ?? []).filter((person) => person.id !== user?.id).map((person) => (
+              <button
+                key={person.id}
+                type="button"
+                className={cn("flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left", directUserId === person.id ? "border-primary bg-primary/[0.06]" : "hover:bg-muted/40")}
+                onClick={() => setDirectUserId(person.id)}
+              >
+                <Avatar className="h-8 w-8"><AvatarFallback>{initials(person.name)}</AvatarFallback></Avatar>
+                <span className="text-sm font-medium">{person.name}</span>
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDirectDialogOpen(false)}>Cancel</Button>
+            <Button onClick={submitDirectMessage} disabled={!directUserId || createDirectMessage.isPending}>
+              {createDirectMessage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}Open chat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function MessageRow({ message, previous }: { message: ChatMessage; previous?: ChatMessage }) {
+function MessageRow({
+  message,
+  previous,
+  currentUserId,
+  isAdmin,
+  editingMessageId,
+  editingContent,
+  onEditingContentChange,
+  onBeginEdit,
+  onSaveEdit,
+  onDelete,
+  onReply,
+  onReact,
+}: {
+  message: ChatMessage
+  previous?: ChatMessage
+  currentUserId?: number
+  isAdmin: boolean
+  editingMessageId: number | null
+  editingContent: string
+  onEditingContentChange: (value: string) => void
+  onBeginEdit: (message: ChatMessage) => void
+  onSaveEdit: (message: ChatMessage) => void
+  onDelete: (message: ChatMessage) => void
+  onReply: (message: ChatMessage) => void
+  onReact: (message: ChatMessage, emoji: string) => void
+}) {
   const grouped = previous?.authorId === message.authorId && new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() < 300000
   const attachmentUrl = getAttachmentUrl(message.attachmentPath)
+  const canModerate = message.authorId === currentUserId || isAdmin
+  const isEditing = editingMessageId === message.id
+  const actionBar = !message.deletedAt ? (
+    <div className="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border bg-white p-0.5 shadow-sm group-hover:flex">
+      <Button variant="ghost" size="icon" className="h-6 w-6" title="Reply" onClick={() => onReply(message)}><Reply className="h-3 w-3" /></Button>
+      <Button variant="ghost" size="icon" className="h-6 w-6" title="React with thumbs up" onClick={() => onReact(message, "👍")}><Smile className="h-3 w-3" /></Button>
+      {canModerate && <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit message" onClick={() => onBeginEdit(message)}><Edit3 className="h-3 w-3" /></Button>}
+      {canModerate && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" title="Delete message" onClick={() => onDelete(message)}><Trash2 className="h-3 w-3" /></Button>}
+    </div>
+  ) : null
+  const messageBody = message.deletedAt ? (
+    <p className="italic text-sm text-muted-foreground">This message was deleted.</p>
+  ) : isEditing ? (
+    <div className="mt-1 flex items-center gap-2">
+      <Input value={editingContent} onChange={(event) => onEditingContentChange(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") onSaveEdit(message); if (event.key === "Escape") onEditingContentChange(message.content) }} className="h-8 text-sm" autoFocus />
+      <Button size="icon" className="h-8 w-8" title="Save edit" onClick={() => onSaveEdit(message)}><Send className="h-3.5 w-3.5" /></Button>
+    </div>
+  ) : (
+    <>
+      {message.content && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">{message.content}</p>}
+      {message.editedAt && <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>}
+    </>
+  )
   const attachmentCard = attachmentUrl && message.attachmentName ? (
     <a
       href={attachmentUrl}
@@ -559,17 +752,19 @@ function MessageRow({ message, previous }: { message: ChatMessage; previous?: Ch
   ) : null
   if (grouped) {
     return (
-      <div className="group flex gap-3 rounded-md px-2 py-0.5 pl-[3.75rem] hover:bg-muted/40" data-testid={`message-chat-${message.id}`}>
+      <div className="group relative flex gap-3 rounded-md px-2 py-0.5 pl-[3.75rem] hover:bg-muted/40" data-testid={`message-chat-${message.id}`}>
         <span className="w-12 shrink-0 pt-1 text-right text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100">{formatMessageTime(message.createdAt)}</span>
         <div className="min-w-0">
-          {message.content && <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>}
+          {messageBody}
           {attachmentCard}
+          {message.reactions?.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={cn("rounded-full border px-1.5 py-0.5 text-[11px]", reaction.reacted && "border-primary bg-primary/10")} onClick={() => onReact(message, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}
         </div>
+        {actionBar}
       </div>
     )
   }
   return (
-    <div className="group flex gap-3 rounded-md px-2 py-2 hover:bg-muted/40" data-testid={`message-chat-${message.id}`}>
+    <div className="group relative flex gap-3 rounded-md px-2 py-2 hover:bg-muted/40" data-testid={`message-chat-${message.id}`}>
       <Avatar className="h-9 w-9 shrink-0 rounded-lg">
         <AvatarFallback className="rounded-lg bg-primary/10 text-xs text-primary">{initials(message.authorName)}</AvatarFallback>
       </Avatar>
@@ -578,9 +773,11 @@ function MessageRow({ message, previous }: { message: ChatMessage; previous?: Ch
           <span className="text-sm font-semibold">{message.authorName}</span>
           <span className="text-[10px] text-muted-foreground">{formatMessageDate(message.createdAt)} at {formatMessageTime(message.createdAt)}</span>
         </div>
-        {message.content && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">{message.content}</p>}
+        {messageBody}
         {attachmentCard}
+        {message.reactions?.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{message.reactions.map((reaction) => <button key={reaction.emoji} type="button" className={cn("rounded-full border px-1.5 py-0.5 text-[11px]", reaction.reacted && "border-primary bg-primary/10")} onClick={() => onReact(message, reaction.emoji)}>{reaction.emoji} {reaction.count}</button>)}</div>}
       </div>
+      {actionBar}
     </div>
   )
 }
