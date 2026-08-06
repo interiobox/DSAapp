@@ -261,7 +261,7 @@ export default function Assignments() {
                                  <Progress value={progress} className="h-1.5 rounded-sm" />
                                </div>
                                 <div className="min-w-0">
-                                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:flex-nowrap lg:gap-1 lg:whitespace-nowrap">
                                   <Select
                                     value={draftAssignee || undefined}
                                     onValueChange={(value) => setAssigneeDrafts((current) => ({ ...current, [drawing.id]: value }))}
@@ -273,9 +273,9 @@ export default function Assignments() {
                                       {assignmentOptions.map((name) => <SelectItem key={name} value={name}>{name}</SelectItem>)}
                                     </SelectContent>
                                   </Select>
-                                   <Button size="sm" variant="outline" className="rounded-sm" disabled={isSaving || !yourName || !draftAssignee.trim()} onClick={() => assignDrawing(drawing.id, draftAssignee)}>
-                                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserRoundPlus className="mr-2 h-4 w-4" />}
-                                     Assign
+                                    <Button size="sm" variant="outline" className="shrink-0 rounded-sm px-2" disabled={isSaving || !yourName || !draftAssignee.trim()} onClick={() => assignDrawing(drawing.id, draftAssignee)}>
+                                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserRoundPlus className="h-4 w-4" />}
+                                      <span className="ml-1">Assign</span>
                                   </Button>
                                   {drawing.assignedTo && (
                                      <Button size="sm" variant="ghost" className="rounded-sm px-2 text-muted-foreground" disabled={isSaving || !yourName} onClick={() => assignDrawing(drawing.id, null)} title="Unassign drawing">
