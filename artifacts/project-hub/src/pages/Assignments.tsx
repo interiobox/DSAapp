@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 
 const statusLabel = (status: string) => status === "superseded" ? "Archived" : status.replace("_", " ")
@@ -48,6 +49,7 @@ export default function Assignments() {
   const { user } = usePortalAuth()
   const yourName = user?.name || user?.username || ""
   const [assigneeDrafts, setAssigneeDrafts] = React.useState<Record<number, string>>({})
+  const [activeTab, setActiveTab] = React.useState("all")
   const [personFilter, setPersonFilter] = React.useState("all")
   const [projectFilter, setProjectFilter] = React.useState("all")
 
@@ -68,12 +70,18 @@ export default function Assignments() {
   }, [drawings, userNames, yourName])
   const visibleDrawings = React.useMemo(
     () => (drawings ?? []).filter((drawing) => {
+      const isComplete = drawing.status === "issued" || drawing.status === "superseded"
+      const matchesTab = activeTab === "all"
+        || (activeTab === "mine" && drawing.assignedTo === yourName)
+        || (activeTab === "unassigned" && !drawing.assignedTo)
+        || (activeTab === "in-progress" && Boolean(drawing.assignedTo) && !isComplete)
+        || (activeTab === "completed" && isComplete)
       const matchesPerson = personFilter === "all"
         || (personFilter === "unassigned" ? !drawing.assignedTo : drawing.assignedTo === personFilter)
       const matchesProject = projectFilter === "all" || drawing.projectName === projectFilter
-      return matchesPerson && matchesProject
+      return matchesTab && matchesPerson && matchesProject
     }),
-    [drawings, personFilter, projectFilter],
+    [activeTab, drawings, personFilter, projectFilter, yourName],
   )
   const groupedByPerson = React.useMemo(() => {
     const groups = new Map<string, typeof visibleDrawings>()
@@ -171,6 +179,22 @@ export default function Assignments() {
               </CardContent>
             </Card>
           </div>
+
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => {
+              setActiveTab(value)
+              setPersonFilter("all")
+            }}
+          >
+            <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 sm:w-auto">
+              <TabsTrigger value="all">All Assignments</TabsTrigger>
+              <TabsTrigger value="mine">My Assignments</TabsTrigger>
+              <TabsTrigger value="unassigned">Unassigned</TabsTrigger>
+              <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row">
             <Select value={personFilter} onValueChange={setPersonFilter}>
