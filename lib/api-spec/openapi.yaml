@@ -1090,7 +1090,15 @@ paths:
     get:
       operationId: adminListActivity
       tags: [admin]
-      summary: List complete portal activity
+      summary: List portal activity for a specific day
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: Calendar day to include, in YYYY-MM-DD format
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
       responses:
         "200":
           description: Complete portal activity

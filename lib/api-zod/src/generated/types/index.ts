@@ -9,6 +9,7 @@
 export * from './activity';
 export * from './activityType';
 export * from './adminCompleteGoogleDriveOAuthParams';
+export * from './adminListActivityParams';
 export * from './adminUserInput';
 export * from './adminUserInputRole';
 export * from './adminUserUpdate';

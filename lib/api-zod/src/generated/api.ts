@@ -1302,8 +1302,15 @@ export const AdminDeleteDisciplineResponse = zod.void()
 
 
 /**
- * @summary List complete portal activity
+ * @summary List portal activity for a specific day
  */
+export const adminListActivityQueryDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const AdminListActivityQueryParams = zod.object({
+  "date": zod.coerce.string().regex(adminListActivityQueryDateRegExp).optional().describe('Calendar day to include, in YYYY-MM-DD format')
+})
+
 export const AdminListActivityResponseItem = zod.object({
   "id": zod.number(),
   "type": zod.enum(['drawing_added', 'drawing_updated', 'drawing_issued', 'drawing_approved', 'drawing_uploaded', 'drawing_assigned', 'drawing_deleted', 'comment_added']),

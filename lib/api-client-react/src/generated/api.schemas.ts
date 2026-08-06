@@ -769,6 +769,14 @@ export type GetMyAttendanceMonthParams = {
 month: string;
 };
 
+export type AdminListActivityParams = {
+/**
+ * Calendar day to include, in YYYY-MM-DD format
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+date?: string;
+};
+
 export type AdminCompleteGoogleDriveOAuthParams = {
 code?: string;
 state?: string;

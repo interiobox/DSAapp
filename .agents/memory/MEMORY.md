@@ -7,3 +7,4 @@
 - [Google Drive drawing structure](google-drive-structure.md) — reuse one root and organize active/deleted drawings consistently through the recycle lifecycle.
 - [Attendance register rules](attendance-register.md) — attendance is one admin-controlled record per active employee/date with explicit statuses and required absence reasons.
 - [Assignment row responsiveness](assignment-layout.md) — keep desktop assignment controls on one line while preserving the compact stacked mobile layout.
+- [Admin daily activity register](admin-daily-activity.md) — administrators can review date-filtered, per-user audit actions and uploads in one screen.

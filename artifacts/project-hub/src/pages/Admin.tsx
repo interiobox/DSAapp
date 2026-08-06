@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Cloud, Eye, KeyRound, Plus, Save, ShieldCheck, StickyNote, Trash2, Users } from "lucide-react"
+import { Activity as ActivityIcon, CalendarDays, Cloud, Eye, FileEdit, KeyRound, Plus, Save, ShieldCheck, StickyNote, Trash2, Upload, Users } from "lucide-react"
 
 import {
   getAdminListActivityQueryKey,
@@ -15,7 +15,7 @@ import {
   useAdminListUsers,
   useAdminUpdateUser,
 } from "@workspace/api-client-react"
-import type { AdminUserInputRole, AdminUserUpdateRole, PortalUser } from "@workspace/api-client-react"
+import type { Activity, AdminUserInputRole, AdminUserUpdateRole, PortalUser } from "@workspace/api-client-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,12 +34,37 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?"
 }
 
+function localDateValue(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function actionLabel(type: Activity["type"]) {
+  switch (type) {
+    case "drawing_uploaded": return "Uploaded file"
+    case "drawing_assigned": return "Changed assignment"
+    case "drawing_added": return "Added drawing"
+    case "drawing_approved": return "Approved drawing"
+    case "drawing_issued": return "Issued drawing"
+    case "drawing_deleted": return "Deleted drawing"
+    case "comment_added": return "Added review comment"
+    default: return "Updated drawing"
+  }
+}
+
+function activityTime(dateString: string) {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(dateString))
+}
+
 export default function AdminPage() {
   const { user } = usePortalAuth()
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { data: users, isLoading: usersLoading } = useAdminListUsers()
-  const { data: activity, isLoading: activityLoading } = useAdminListActivity()
+  const [activityDate, setActivityDate] = React.useState(() => localDateValue())
+  const { data: activity, isLoading: activityLoading } = useAdminListActivity({ date: activityDate })
   const { data: personalNotes, isLoading: personalNotesLoading } = useAdminListPersonalNotes()
   const { data: driveStatus, isLoading: driveLoading } = useAdminGetGoogleDriveStatus()
   const createUser = useAdminCreateUser()
@@ -48,6 +73,29 @@ export default function AdminPage() {
   const [newUser, setNewUser] = React.useState<DraftUser>({ name: "", username: "", password: "", role: "user", active: true })
   const [userDrafts, setUserDrafts] = React.useState<Record<number, DraftUser>>({})
   const disconnectDrive = useAdminDisconnectGoogleDrive()
+  const userNamesById = React.useMemo(
+    () => new Map((users ?? []).map((portalUser) => [String(portalUser.id), portalUser.name])),
+    [users],
+  )
+  const activityGroups = React.useMemo(() => {
+    const groups = new Map<string, { name: string; items: Activity[] }>()
+    for (const portalUser of users ?? []) {
+      groups.set(portalUser.name, { name: portalUser.name, items: [] })
+    }
+    for (const item of activity ?? []) {
+      const name = item.actor ? userNamesById.get(item.actor) ?? `User ${item.actor}` : "System"
+      const group = groups.get(name) ?? { name, items: [] }
+      group.items.push(item)
+      groups.set(name, group)
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.items.length === 0 && b.items.length > 0) return 1
+      if (a.items.length > 0 && b.items.length === 0) return -1
+      return a.name.localeCompare(b.name)
+    })
+  }, [activity, userNamesById, users])
+  const uploadCount = (activity ?? []).filter((item) => item.type === "drawing_uploaded").length
+  const activeUserCount = activityGroups.filter((group) => group.items.length > 0).length
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -215,12 +263,61 @@ export default function AdminPage() {
             </Card>
           </div>
 
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader><CardTitle className="text-base">Everyone’s activity <Badge variant="outline">{activity?.length ?? 0}</Badge></CardTitle><CardDescription>Complete portal activity, not only your own actions.</CardDescription></CardHeader>
-              <CardContent className="p-0">{activityLoading ? <div className="space-y-3 p-6"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : <div className="max-h-[460px] divide-y overflow-auto">{(activity ?? []).map((item) => <div key={item.id} className="px-6 py-3"><p className="text-sm">{item.message}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(item.createdAt)}</p></div>)}</div>}</CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader className="border-b">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ActivityIcon className="h-4 w-4 text-primary" />Daily activity register
+                    <Badge variant="outline">{activity?.length ?? 0} actions</Badge>
+                  </CardTitle>
+                  <CardDescription>See what every user did on one specific day, including files uploaded and drawing changes.</CardDescription>
+                </div>
+                <label className="flex shrink-0 items-center gap-2 text-sm font-medium">
+                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                  <span className="sr-only">Activity date</span>
+                  <Input type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} className="w-[155px]" />
+                </label>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="grid grid-cols-2 divide-x border-b sm:grid-cols-4">
+                <div className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Actions</p><p className="mt-1 text-2xl font-semibold">{activity?.length ?? 0}</p></div>
+                <div className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Uploads</p><p className="mt-1 text-2xl font-semibold">{uploadCount}</p></div>
+                <div className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Active users</p><p className="mt-1 text-2xl font-semibold">{activeUserCount}</p></div>
+                <div className="p-4"><p className="text-xs uppercase tracking-wider text-muted-foreground">Users tracked</p><p className="mt-1 text-2xl font-semibold">{users?.length ?? 0}</p></div>
+              </div>
+              {activityLoading ? (
+                <div className="space-y-3 p-6"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+              ) : activityGroups.length === 0 ? (
+                <div className="px-6 py-14 text-center text-sm text-muted-foreground">No portal users or activity records are available.</div>
+              ) : (
+                <div className="divide-y">
+                  {activityGroups.map((group) => (
+                    <section key={group.name} className="px-5 py-5 sm:px-6">
+                      <div className="mb-3 flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{initials(group.name)}</span>
+                        <div className="min-w-0"><p className="font-semibold">{group.name}</p><p className="text-xs text-muted-foreground">{group.items.length ? `${group.items.length} action${group.items.length === 1 ? "" : "s"} on ${activityDate}` : "No activity recorded on this date"}</p></div>
+                        <Badge variant={group.items.length ? "default" : "outline"} className="ml-auto">{group.items.length}</Badge>
+                      </div>
+                      {group.items.length > 0 && (
+                        <div className="ml-0 divide-y rounded-md border sm:ml-12">
+                          {group.items.map((item) => (
+                            <div key={item.id} className="flex gap-3 px-4 py-3">
+                              <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${item.type === "drawing_uploaded" ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                                {item.type === "drawing_uploaded" ? <Upload className="h-3.5 w-3.5" /> : <FileEdit className="h-3.5 w-3.5" />}
+                              </span>
+                              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className="text-[10px]">{actionLabel(item.type)}</Badge><span className="text-xs text-muted-foreground">{activityTime(item.createdAt)}</span></div><p className="mt-1 text-sm leading-relaxed">{item.message}</p></div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

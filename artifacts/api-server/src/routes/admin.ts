@@ -219,8 +219,19 @@ router.delete("/admin/disciplines/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
-router.get("/admin/activity", async (_req, res): Promise<void> => {
-  res.json(await db.select().from(drawingActivityTable).orderBy(desc(drawingActivityTable.createdAt)).limit(500));
+router.get("/admin/activity", async (req, res): Promise<void> => {
+  const requestedDate = typeof req.query.date === "string" ? req.query.date : "";
+  if (requestedDate && !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+    res.status(400).json({ error: "Date must use YYYY-MM-DD format" });
+    return;
+  }
+  const activity = await db
+    .select()
+    .from(drawingActivityTable)
+    .where(requestedDate ? sql`DATE(${drawingActivityTable.createdAt}) = ${requestedDate}` : undefined)
+    .orderBy(desc(drawingActivityTable.createdAt))
+    .limit(500);
+  res.json(activity);
 });
 
 router.get("/admin/personal-notes", async (_req, res): Promise<void> => {

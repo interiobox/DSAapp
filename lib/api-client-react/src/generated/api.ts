@@ -22,6 +22,7 @@ import type {
 import type {
   Activity,
   AdminCompleteGoogleDriveOAuthParams,
+  AdminListActivityParams,
   AdminUserInput,
   AdminUserUpdate,
   AttendanceEntry,
@@ -4491,20 +4492,27 @@ export const useAdminDeleteDiscipline = <TError = ErrorType<unknown>,
       return useMutation(getAdminDeleteDisciplineMutationOptions(options));
     }
 
-export const getAdminListActivityUrl = () => {
+export const getAdminListActivityUrl = (params?: AdminListActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/admin/activity`
+  return stringifiedParams.length > 0 ? `/api/admin/activity?${stringifiedParams}` : `/api/admin/activity`
 }
 
 /**
- * @summary List complete portal activity
+ * @summary List portal activity for a specific day
  */
-export const adminListActivity = async ( options?: Parameters<typeof customFetch>[1]): Promise<Activity[]> => {
+export const adminListActivity = async (params?: AdminListActivityParams, options?: Parameters<typeof customFetch>[1]): Promise<Activity[]> => {
 
-  return customFetch<Activity[]>(getAdminListActivityUrl(),
+  return customFetch<Activity[]>(getAdminListActivityUrl(params),
   {
     ...options,
     method: 'GET'
@@ -4517,23 +4525,23 @@ export const adminListActivity = async ( options?: Parameters<typeof customFetch
 
 
 
-export const getAdminListActivityQueryKey = () => {
+export const getAdminListActivityQueryKey = (params?: AdminListActivityParams,) => {
     return [
-    `/api/admin/activity`
+    `/api/admin/activity`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getAdminListActivityQueryOptions = <TData = Awaited<ReturnType<typeof adminListActivity>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getAdminListActivityQueryOptions = <TData = Awaited<ReturnType<typeof adminListActivity>>, TError = ErrorType<unknown>>(params?: AdminListActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getAdminListActivityQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getAdminListActivityQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListActivity>>> = ({ signal }) => adminListActivity({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListActivity>>> = ({ signal }) => adminListActivity(params, { signal, ...requestOptions });
 
 
 
@@ -4547,15 +4555,15 @@ export type AdminListActivityQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List complete portal activity
+ * @summary List portal activity for a specific day
  */
 
 export function useAdminListActivity<TData = Awaited<ReturnType<typeof adminListActivity>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: AdminListActivityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListActivity>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getAdminListActivityQueryOptions(options)
+  const queryOptions = getAdminListActivityQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
