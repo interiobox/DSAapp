@@ -8,10 +8,12 @@ import {
   Edit3,
   FileText,
   Hash,
+  Info,
   Loader2,
   LogIn,
   LogOut,
   MessageSquare,
+  MoreHorizontal,
   Paperclip,
   Plus,
   Reply,
@@ -19,11 +21,13 @@ import {
   Send,
   Smile,
   Trash2,
+  Users,
   X,
 } from "lucide-react"
 
 import {
   getListChatChannelsQueryKey,
+  getListChatChannelMembersQueryKey,
   getListChatMessagesQueryKey,
   getListUsersQueryKey,
   useCreateChatChannel,
@@ -32,6 +36,7 @@ import {
   useDeleteChatMessage,
   useJoinChatChannel,
   useLeaveChatChannel,
+  useListChatChannelMembers,
   useListChatChannels,
   useListChatMessages,
   useListUsers,
@@ -47,6 +52,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
@@ -109,6 +115,8 @@ function getAttachmentUrl(path: string | null | undefined) {
   return path.startsWith("/objects/") ? `/api/storage${path}` : path
 }
 
+const reactionOptions = ["👍", "❤️", "😂", "🎉", "😮", "😢", "👏", "🚀"]
+
 export default function ChatPage() {
   const { user } = usePortalAuth()
   const queryClient = useQueryClient()
@@ -122,12 +130,15 @@ export default function ChatPage() {
   })
   const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false)
   const [isDirectDialogOpen, setIsDirectDialogOpen] = useState(false)
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
+  const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
   const [channelName, setChannelName] = useState("")
   const [channelDescription, setChannelDescription] = useState("")
   const [message, setMessage] = useState("")
   const [conversationSearch, setConversationSearch] = useState("")
   const [messageSearch, setMessageSearch] = useState("")
   const [isGlobalSearch, setIsGlobalSearch] = useState(false)
+  const [directSearch, setDirectSearch] = useState("")
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null)
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
   const [editingContent, setEditingContent] = useState("")
@@ -163,11 +174,19 @@ export default function ChatPage() {
     { query: messageSearch.trim() || "x" },
     { query: { enabled: isGlobalSearch && messageSearch.trim().length > 0, queryKey: ["/api/chat/search", messageSearch.trim()] } },
   )
+  const membersQuery = useListChatChannelMembers(activeChannelId, {
+    query: {
+      enabled: Boolean(activeChannel && isMembersDialogOpen),
+      queryKey: getListChatChannelMembersQueryKey(activeChannelId),
+      refetchInterval: 15000,
+    },
+  })
   const filteredMessages = useMemo(() => {
     const query = messageSearch.trim().toLocaleLowerCase()
     if (!query) return messages
     return messages.filter((item) => `${item.authorName} ${item.content}`.toLocaleLowerCase().includes(query))
   }, [messageSearch, messages])
+  const messagesById = useMemo(() => new Map(messages.map((item) => [item.id, item])), [messages])
 
   const createChannel = useCreateChatChannel()
   const createDirectMessage = useCreateChatDirectMessage()
@@ -179,6 +198,12 @@ export default function ChatPage() {
   const leaveChannel = useLeaveChatChannel()
   const markChannelRead = useMarkChatChannelRead()
   const usersQuery = useListUsers({ query: { enabled: isDirectDialogOpen, queryKey: getListUsersQueryKey() } })
+  const visibleUsers = useMemo(() => {
+    const query = directSearch.trim().toLocaleLowerCase()
+    return (usersQuery.data ?? [])
+      .filter((person) => person.id !== user?.id)
+      .filter((person) => `${person.name} ${person.username ?? ""}`.toLocaleLowerCase().includes(query))
+  }, [directSearch, user?.id, usersQuery.data])
   const visibleChannels = useMemo(() => {
     const query = conversationSearch.trim().toLocaleLowerCase()
     return [...channels]
@@ -199,6 +224,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     setMessageSearch("")
+    setIsMessageSearchOpen(false)
     setReplyTo(null)
     setEditingMessageId(null)
     if (activeChannelId) {
@@ -282,6 +308,11 @@ export default function ChatPage() {
       },
       onError: (error) => toast({ title: "Direct chat could not be opened", description: error instanceof Error ? error.message : "Please try again." }),
     })
+  }
+
+  function openMessageSearch(global = false) {
+    setIsGlobalSearch(global)
+    setIsMessageSearchOpen(true)
   }
 
   async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
@@ -472,7 +503,7 @@ export default function ChatPage() {
                   <p className="mt-1 truncate pl-7 text-xs text-muted-foreground">{activeChannel.description || "A place for the team to talk."}</p>
                 </div>
                   <div className="flex shrink-0 items-center gap-1">
-                    <div className="relative hidden sm:block">
+                     <div className={cn("relative", isMessageSearchOpen ? "block" : "hidden sm:block")}>
                       <Search className="pointer-events-none absolute left-3 top-2 h-3.5 w-3.5 text-muted-foreground" />
                       <Input
                         aria-label="Search messages"
@@ -484,16 +515,44 @@ export default function ChatPage() {
                       />
                       {messageSearch && <button type="button" aria-label="Clear message search" onClick={() => setMessageSearch("")} className="absolute right-2 top-1.5 text-muted-foreground"><X className="h-3.5 w-3.5" /></button>}
                     </div>
-                    <Button variant={isGlobalSearch ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-full" title="Toggle global message search" onClick={() => setIsGlobalSearch((value) => !value)} data-testid="button-toggle-global-chat-search">
+                     <Button variant={isMessageSearchOpen && !isGlobalSearch ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-full" title="Search this conversation" onClick={() => openMessageSearch(false)} data-testid="button-toggle-chat-search">
                       <Search className="h-4 w-4" />
                     </Button>
+                     <Button variant={isGlobalSearch ? "default" : "ghost"} size="sm" className="hidden h-8 rounded-full px-2 text-[10px] sm:inline-flex" title="Search all joined conversations" onClick={() => openMessageSearch(true)} data-testid="button-toggle-global-chat-search">
+                       All
+                     </Button>
+                     {isMessageSearchOpen && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full sm:hidden" title="Close message search" onClick={() => { setMessageSearch(""); setIsMessageSearchOpen(false) }}><X className="h-4 w-4" /></Button>}
                     <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Notifications" data-testid="button-chat-room-notifications">
                       <Link href="/notifications"><Bell className="h-4 w-4" /></Link>
                     </Button>
-                   {activeChannel.joined ? (
-                     <Button variant="outline" size="sm" onClick={leaveActiveChannel} disabled={leaveChannel.isPending || activeChannel.createdBy === user?.id} title={activeChannel.createdBy === user?.id ? "Channel creators cannot leave their channel" : "Leave channel"} data-testid="button-leave-chat-channel">
-                       {leaveChannel.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <LogOut className="mr-1.5 h-3.5 w-3.5" />}<span className="hidden sm:inline">Leave</span>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Conversation details" onClick={() => setIsMembersDialogOpen(true)} disabled={!activeChannel.joined} data-testid="button-chat-details">
+                       <Info className="h-4 w-4" />
                      </Button>
+                     <Popover>
+                       <PopoverTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="More conversation actions" data-testid="button-chat-more-actions">
+                           <MoreHorizontal className="h-4 w-4" />
+                         </Button>
+                       </PopoverTrigger>
+                       <PopoverContent align="end" className="w-52 p-1">
+                         <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setIsMembersDialogOpen(true)}>
+                           <Users className="h-4 w-4" /> View members
+                         </button>
+                         {activeChannel.joined ? (
+                           <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10" onClick={leaveActiveChannel} disabled={activeChannel.createdBy === user?.id}>
+                             <LogOut className="h-4 w-4" /> Leave conversation
+                           </button>
+                         ) : (
+                           <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={joinActiveChannel}>
+                             <LogIn className="h-4 w-4" /> Join conversation
+                           </button>
+                         )}
+                       </PopoverContent>
+                     </Popover>
+                   {activeChannel.joined ? (
+                      <Button variant="outline" size="sm" onClick={leaveActiveChannel} disabled={leaveChannel.isPending || activeChannel.createdBy === user?.id} title={activeChannel.createdBy === user?.id ? "Channel creators cannot leave their channel" : "Leave channel"} data-testid="button-leave-chat-channel">
+                        {leaveChannel.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <LogOut className="mr-1.5 h-3.5 w-3.5" />}<span className="hidden sm:inline">Leave</span>
+                      </Button>
                    ) : (
                      <Button size="sm" onClick={joinActiveChannel} disabled={joinChannel.isPending} data-testid="button-join-chat-channel">
                        {joinChannel.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <LogIn className="mr-1.5 h-3.5 w-3.5" />}Join
@@ -533,6 +592,9 @@ export default function ChatPage() {
                          onClick={() => {
                            setSelectedChannelId(item.channelId)
                            setIsGlobalSearch(false)
+                            setIsMobileChatOpen(true)
+                            setIsMessageSearchOpen(false)
+                            setMessageSearch("")
                          }}
                        >
                          <div className="flex items-center justify-between gap-3">
@@ -578,6 +640,7 @@ export default function ChatPage() {
                        onDelete={removeMessage}
                        onReply={setReplyTo}
                        onReact={reactToMessage}
+                        replyToMessage={item.replyToId ? messagesById.get(item.replyToId) : undefined}
                      />
                   ))}
                   <div ref={messageEndRef} />
@@ -710,8 +773,12 @@ export default function ChatPage() {
             <DialogTitle>Start a direct message</DialogTitle>
             <DialogDescription>Choose a teammate to open a private conversation.</DialogDescription>
           </DialogHeader>
-          <div className="max-h-72 space-y-1 overflow-y-auto py-2">
-            {(usersQuery.data ?? []).filter((person) => person.id !== user?.id).map((person) => (
+           <div className="relative">
+             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+             <Input value={directSearch} onChange={(event) => setDirectSearch(event.target.value)} placeholder="Search teammates" className="pl-9" data-testid="input-search-direct-users" />
+           </div>
+           <div className="max-h-72 space-y-1 overflow-y-auto py-2">
+             {usersQuery.isLoading ? <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : visibleUsers.length ? visibleUsers.map((person) => (
               <button
                 key={person.id}
                 type="button"
@@ -721,16 +788,45 @@ export default function ChatPage() {
                 <Avatar className="h-8 w-8"><AvatarFallback>{initials(person.name)}</AvatarFallback></Avatar>
                 <span className="text-sm font-medium">{person.name}</span>
               </button>
-            ))}
+             )) : <p className="py-8 text-center text-sm text-muted-foreground">No teammates found.</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDirectDialogOpen(false)}>Cancel</Button>
+             <Button variant="outline" onClick={() => { setIsDirectDialogOpen(false); setDirectSearch(""); setDirectUserId(null) }}>Cancel</Button>
             <Button onClick={submitDirectMessage} disabled={!directUserId || createDirectMessage.isPending}>
               {createDirectMessage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}Open chat
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+       <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>{activeChannel?.channelType === "direct" ? "Conversation details" : `#${activeChannel?.name} details`}</DialogTitle>
+             <DialogDescription>{activeChannel?.description || "Conversation members and access details."}</DialogDescription>
+           </DialogHeader>
+           <div className="rounded-xl border bg-muted/20 p-3">
+             <div className="flex items-center justify-between">
+               <span className="text-xs font-semibold text-muted-foreground">Members</span>
+               <span className="text-xs font-medium">{membersQuery.data?.length ?? activeChannel?.memberCount ?? 0}</span>
+             </div>
+             <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+               {membersQuery.isLoading ? <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : membersQuery.data?.length ? membersQuery.data.map((member) => (
+                 <div key={member.userId} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-background">
+                   <Avatar className="h-8 w-8"><AvatarFallback>{initials(member.name)}</AvatarFallback></Avatar>
+                   <div className="min-w-0 flex-1">
+                     <p className="truncate text-sm font-medium">{member.name}</p>
+                     <p className="truncate text-[11px] text-muted-foreground">{member.username ? `@${member.username}` : member.role}</p>
+                   </div>
+                   {member.userId === activeChannel?.createdBy && <span className="text-[10px] text-muted-foreground">Owner</span>}
+                 </div>
+               )) : <p className="py-6 text-center text-sm text-muted-foreground">No member details available.</p>}
+             </div>
+           </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setIsMembersDialogOpen(false)}>Close</Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
     </div>
   )
 }
@@ -748,6 +844,7 @@ function MessageRow({
   onDelete,
   onReply,
   onReact,
+  replyToMessage,
 }: {
   message: ChatMessage
   previous?: ChatMessage
@@ -761,15 +858,29 @@ function MessageRow({
   onDelete: (message: ChatMessage) => void
   onReply: (message: ChatMessage) => void
   onReact: (message: ChatMessage, emoji: string) => void
+  replyToMessage?: ChatMessage
 }) {
   const grouped = previous?.authorId === message.authorId && new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() < 300000
   const attachmentUrl = getAttachmentUrl(message.attachmentPath)
   const canModerate = message.authorId === currentUserId || isAdmin
   const isEditing = editingMessageId === message.id
   const actionBar = !message.deletedAt ? (
-    <div className="absolute -top-3 right-2 hidden items-center gap-0.5 rounded-md border bg-white p-0.5 shadow-sm group-hover:flex">
+    <div className="absolute -top-3 right-2 flex items-center gap-0.5 rounded-md border bg-white p-0.5 shadow-sm sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
       <Button variant="ghost" size="icon" className="h-6 w-6" title="Reply" onClick={() => onReply(message)}><Reply className="h-3 w-3" /></Button>
-      <Button variant="ghost" size="icon" className="h-6 w-6" title="React with thumbs up" onClick={() => onReact(message, "👍")}><Smile className="h-3 w-3" /></Button>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-6 w-6" title="Add reaction"><Smile className="h-3 w-3" /></Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-auto p-1.5">
+          <div className="flex gap-0.5">
+            {reactionOptions.map((emoji) => (
+              <button key={emoji} type="button" className="rounded-md p-1.5 text-base transition-colors hover:bg-muted" onClick={() => onReact(message, emoji)} aria-label={`React ${emoji}`}>
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
       {canModerate && <Button variant="ghost" size="icon" className="h-6 w-6" title="Edit message" onClick={() => onBeginEdit(message)}><Edit3 className="h-3 w-3" /></Button>}
       {canModerate && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" title="Delete message" onClick={() => onDelete(message)}><Trash2 className="h-3 w-3" /></Button>}
     </div>
@@ -783,6 +894,12 @@ function MessageRow({
     </div>
   ) : (
     <>
+      {replyToMessage && (
+        <button type="button" className="mt-1 block max-w-sm rounded-md border-l-2 border-primary/50 bg-primary/[0.05] px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-primary/[0.09]" onClick={() => document.querySelector(`[data-testid="message-chat-${replyToMessage.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+          <span className="font-semibold text-primary">{replyToMessage.authorName}</span>
+          <span className="ml-1 line-clamp-1">{replyToMessage.content || replyToMessage.attachmentName || "Attachment"}</span>
+        </button>
+      )}
       {message.content && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">{message.content}</p>}
       {message.editedAt && <span className="ml-1 text-[10px] text-muted-foreground">(edited)</span>}
     </>
