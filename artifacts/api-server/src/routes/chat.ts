@@ -213,6 +213,11 @@ router.get("/chat/channels/:channelId/members", async (req, res): Promise<void> 
     res.status(404).json({ error: "Chat channel not found" });
     return;
   }
+  const user = requireCurrentUser(req);
+  if (!(await isChannelMember(channel.id, user.id))) {
+    res.status(403).json({ error: "Join this channel to view its members" });
+    return;
+  }
   const members = await db.select({
     userId: usersTable.id,
     name: usersTable.name,
@@ -241,10 +246,15 @@ router.get("/chat/channels/:channelId/messages", async (req, res): Promise<void>
     res.status(404).json({ error: "Chat channel not found" });
     return;
   }
+  const user = requireCurrentUser(req);
+  if (!(await isChannelMember(channel.id, user.id))) {
+    res.status(403).json({ error: "Join this channel to view its messages" });
+    return;
+  }
   const messages = await db.select().from(chatMessagesTable)
     .where(eq(chatMessagesTable.channelId, channel.id))
     .orderBy(asc(chatMessagesTable.createdAt), asc(chatMessagesTable.id));
-  res.json(await Promise.all(messages.map((message) => serializeMessage(message, requireCurrentUser(req).id))));
+  res.json(await Promise.all(messages.map((message) => serializeMessage(message, user.id))));
 });
 
 router.post("/chat/channels/:channelId/messages", async (req, res): Promise<void> => {
@@ -282,6 +292,10 @@ router.post("/chat/channels/:channelId/messages", async (req, res): Promise<void
     .limit(1);
   if (!channel) {
     res.status(404).json({ error: "Chat channel not found" });
+    return;
+  }
+  if (!(await isChannelMember(channel.id, user.id))) {
+    res.status(403).json({ error: "Join this channel to read messages" });
     return;
   }
   if (!(await isChannelMember(channel.id, user.id))) {

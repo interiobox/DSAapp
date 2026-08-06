@@ -498,7 +498,41 @@ export default function ChatPage() {
                   <p className="mt-1 max-w-sm text-sm text-muted-foreground">Create your first channel for a project decision, site update, or drawing review.</p>
                   <Button className="mt-5" onClick={() => setIsChannelDialogOpen(true)} data-testid="button-create-first-channel"><Plus className="mr-2 h-4 w-4" />Create channel</Button>
                 </div>
-              ) : messages.length && filteredMessages.length ? (
+               ) : isGlobalSearch && messageSearch.trim() ? (
+                 <div className="space-y-3">
+                   <div className="rounded-md bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                     Searching across joined channels for “{messageSearch.trim()}”
+                   </div>
+                   {globalSearchQuery.isLoading ? (
+                     <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-11/12" /></div>
+                   ) : globalSearchQuery.data?.length ? (
+                     globalSearchQuery.data.map((item) => (
+                       <button
+                         key={item.id}
+                         type="button"
+                         className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/40"
+                         onClick={() => {
+                           setSelectedChannelId(item.channelId)
+                           setIsGlobalSearch(false)
+                         }}
+                       >
+                         <div className="flex items-center justify-between gap-3">
+                           <span className="text-xs font-semibold">#{item.channelName}</span>
+                           <span className="text-[10px] text-muted-foreground">{formatMessageDate(item.createdAt)}</span>
+                         </div>
+                         <p className="mt-1 text-xs text-muted-foreground">{item.authorName}</p>
+                         <p className="mt-1 line-clamp-2 text-sm">{item.content || item.attachmentName || "Attachment"}</p>
+                       </button>
+                     ))
+                   ) : (
+                     <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
+                       <Search className="mb-3 h-9 w-9 text-muted-foreground/60" />
+                       <h3 className="font-semibold">No messages found</h3>
+                       <p className="mt-1 max-w-sm text-sm text-muted-foreground">Try a different word, phrase, or teammate name.</p>
+                     </div>
+                   )}
+                 </div>
+               ) : messages.length && filteredMessages.length ? (
                 <div className="space-y-1">
                   <div className="mb-6 border-b pb-5">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Hash className="h-6 w-6" /></div>
