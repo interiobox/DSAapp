@@ -33,18 +33,18 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MentionTextarea } from "@/components/MentionTextarea"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
+import { cn, formatTime, formatDate } from "@/lib/utils"
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"
 }
 
 function formatMessageTime(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(dateString))
+  return formatTime(dateString)
 }
 
 function formatMessageDate(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(dateString))
+  return formatDate(dateString)
 }
 
 export default function ChatPage() {

@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
-import { formatDate } from "@/lib/utils"
+import { formatCalendarDate, formatDate, formatTime, getTodayInIST } from "@/lib/utils"
 import { usePortalAuth } from "@/App"
 
 const statusOptions: Array<{ value: AttendanceStatus; label: string; icon: React.ElementType; className: string }> = [
@@ -28,12 +28,6 @@ const statusOptions: Array<{ value: AttendanceStatus; label: string; icon: React
   { value: "leave", label: "On leave", icon: Plane, className: "text-violet-700 bg-violet-500/10 border-violet-500/20" },
   { value: "absent", label: "Absent", icon: AlertTriangle, className: "text-rose-700 bg-rose-500/10 border-rose-500/20" },
 ]
-
-function dateToday() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
-}
 
 function statusOption(value: string | null) {
   return statusOptions.find((option) => option.value === value)
@@ -51,7 +45,7 @@ export default function AttendancePage() {
 function AdminAttendancePage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const todayDate = dateToday()
+  const todayDate = getTodayInIST()
   const [selectedDate, setSelectedDate] = React.useState(todayDate)
   const [editingReason, setEditingReason] = React.useState<Record<number, string>>({})
   const [savingEmployeeId, setSavingEmployeeId] = React.useState<number | null>(null)
@@ -148,7 +142,7 @@ function AdminAttendancePage() {
                               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
                                 <span className="inline-flex items-center gap-1 text-emerald-700">
                                   <Check className="h-3 w-3" />
-                                  Self-checked in at {new Date(entry.selfCheckinAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  Self-checked in at {formatTime(entry.selfCheckinAt)}
                                 </span>
                                 <a
                                   href={`https://www.google.com/maps?q=${entry.latitude},${entry.longitude}`}
@@ -200,7 +194,7 @@ function AdminAttendancePage() {
 }
 
 function EmployeeAttendancePage() {
-  const todayMonth = dateToday().slice(0, 7)
+  const todayMonth = getTodayInIST().slice(0, 7)
   const [selectedMonth, setSelectedMonth] = React.useState(todayMonth)
   const { data: attendance, isLoading, isFetching, error } = useGetMyAttendanceMonth(
     { month: selectedMonth },
@@ -282,7 +276,7 @@ function EmployeeAttendancePage() {
                     return (
                       <div key={`${entry.employeeId}-${entry.attendanceDate}`} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                         <div>
-                          <p className="font-medium">{new Date(entry.attendanceDate).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</p>
+                          <p className="font-medium">{formatCalendarDate(entry.attendanceDate)}</p>
                           <p className="text-xs text-muted-foreground">{entry.reason ?? "Attendance recorded"}</p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -290,7 +284,7 @@ function EmployeeAttendancePage() {
                           {entry.selfCheckinAt && (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <MapPin className="h-3 w-3 text-emerald-600" />
-                              {new Date(entry.selfCheckinAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {formatTime(entry.selfCheckinAt)}
                             </span>
                           )}
                         </div>

@@ -35,7 +35,7 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ProjectNotesPanel } from "@/components/ProjectNotesPanel"
-import { formatDateShort } from "@/lib/utils"
+import { formatDateShort, getTodayInIST } from "@/lib/utils"
 import { usePortalAuth } from "@/App"
 import { useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
@@ -84,7 +84,7 @@ export default function ProjectDetail() {
     .filter((drawing): drawing is typeof drawing & { dueDate: string } => Boolean(drawing.dueDate))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .slice(0, 4)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getTodayInIST()
   const overdueDrawings = projectDrawings.filter(
     (drawing) => Boolean(drawing.dueDate) && drawing.dueDate! < today && drawing.status !== "issued" && drawing.status !== "superseded",
   )

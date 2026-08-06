@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
-import { formatDate } from "@/lib/utils"
+import { formatDate, formatTime, getTodayInIST } from "@/lib/utils"
 import { usePortalAuth } from "@/App"
 import { Redirect } from "wouter"
 
@@ -32,13 +32,6 @@ type DraftUser = { name: string; username: string; password: string; role: Admin
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?"
-}
-
-function localDateValue(date = new Date()) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
 }
 
 function actionLabel(type: Activity["type"]) {
@@ -55,7 +48,7 @@ function actionLabel(type: Activity["type"]) {
 }
 
 function activityTime(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(dateString))
+  return formatTime(dateString)
 }
 
 export default function AdminPage() {
@@ -63,7 +56,7 @@ export default function AdminPage() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const { data: users, isLoading: usersLoading } = useAdminListUsers()
-  const [activityDate, setActivityDate] = React.useState(() => localDateValue())
+  const [activityDate, setActivityDate] = React.useState(() => getTodayInIST())
   const { data: activity, isLoading: activityLoading } = useAdminListActivity({ date: activityDate })
   const { data: personalNotes, isLoading: personalNotesLoading } = useAdminListPersonalNotes()
   const { data: driveStatus, isLoading: driveLoading } = useAdminGetGoogleDriveStatus()

@@ -13,19 +13,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
-
-function today() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
-}
-
-function formatTime(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""
-}
+import { formatTime, getTodayInIST } from "@/lib/utils"
 
 export default function AttendanceSelfCheckin() {
-  const selectedDate = today()
+  const selectedDate = getTodayInIST()
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [locationState, setLocationState] = React.useState<"idle" | "requesting" | "denied">("idle")

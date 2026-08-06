@@ -20,6 +20,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { usePortalAuth } from "@/App"
+import { formatDate } from "@/lib/utils"
 
 type SearchResult = {
   id: string
@@ -114,7 +115,7 @@ export function UniversalSearch() {
     const activityResults = (activity ?? []).slice(0, 20).map((item) => ({
       id: `activity-${item.id}`,
       label: item.message,
-      detail: item.actor ? `${item.actor} · ${new Date(item.createdAt).toLocaleDateString()}` : new Date(item.createdAt).toLocaleDateString(),
+      detail: item.actor ? `${item.actor} · ${formatDate(item.createdAt)}` : formatDate(item.createdAt),
       group: "Activity",
       icon: Activity,
       href: item.drawingId ? `/drawings/${item.drawingId}` : "/activity",

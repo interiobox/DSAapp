@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Link } from "wouter"
-import { formatDate, formatDateShort } from "@/lib/utils"
+import { formatDate, formatDateShort, getTodayInIST } from "@/lib/utils"
 import { getStorageObjectUrl } from "@/components/SheetPreview"
 
 const statusLabel = (status: string) => status === "superseded" ? "Archived" : status.replace("_", " ")
@@ -31,7 +31,7 @@ export function Notifications() {
   const markAllRead = useMarkAllNotificationsRead()
   const { data: drawings } = useListDrawings()
   const assigned = (drawings ?? []).filter((drawing) => drawing.assignedTo)
-  const dueSoon = assigned.filter((drawing) => drawing.dueDate && drawing.dueDate >= new Date().toISOString().slice(0, 10)).slice(0, 5)
+  const dueSoon = assigned.filter((drawing) => drawing.dueDate && drawing.dueDate >= getTodayInIST()).slice(0, 5)
   const unread = (notifications ?? []).filter((notification) => !notification.readAt)
   return <div className="flex h-full flex-1 flex-col overflow-hidden"><Header icon={Bell} title="Notifications" description="Mentions, assignments, status changes, and drawing updates for you." /><div className="flex-1 overflow-auto p-3 sm:p-6"><div className="mx-auto max-w-5xl space-y-6">
     <Card><CardHeader className="flex flex-row items-start justify-between gap-4 border-b"><div><CardTitle className="text-base">Your notifications <Badge variant="outline">{unread.length} unread</Badge></CardTitle><CardDescription>Updates refresh automatically while you work.</CardDescription></div><button type="button" className="text-xs font-medium text-primary hover:underline disabled:opacity-50" disabled={!unread.length || markAllRead.isPending} onClick={() => markAllRead.mutate(undefined, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() }) } })}>Mark all read</button></CardHeader><CardContent className="p-0">{isLoading ? <Skeleton className="m-6 h-32" /> : notifications?.length ? <div className="divide-y">{notifications.map((item) => {
