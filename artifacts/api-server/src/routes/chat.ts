@@ -193,7 +193,11 @@ router.post("/chat/channels/:channelId/leave", async (req, res): Promise<void> =
     return;
   }
   const user = requireCurrentUser(req);
-  const [channel] = await db.select({ id: chatChannelsTable.id, createdBy: chatChannelsTable.createdBy })
+  const [channel] = await db.select({
+    id: chatChannelsTable.id,
+    createdBy: chatChannelsTable.createdBy,
+    channelType: chatChannelsTable.channelType,
+  })
     .from(chatChannelsTable)
     .where(eq(chatChannelsTable.id, params.data.channelId))
     .limit(1);
@@ -201,7 +205,7 @@ router.post("/chat/channels/:channelId/leave", async (req, res): Promise<void> =
     res.status(404).json({ error: "Chat channel not found" });
     return;
   }
-  if (channel.createdBy === user.id) {
+  if (channel.channelType !== "direct" && channel.createdBy === user.id) {
     res.status(400).json({ error: "The channel creator cannot leave this channel" });
     return;
   }
@@ -424,6 +428,11 @@ router.post("/chat/direct", async (req, res): Promise<void> => {
     }).$returningId();
     channelId = id;
     await db.insert(chatChannelMembersTable).values(participantIds.map((userId) => ({ channelId, userId })));
+  } else {
+    await db.insert(chatChannelMembersTable).values({
+      channelId,
+      userId: user.id,
+    }).onDuplicateKeyUpdate({ set: { userId: user.id } });
   }
   res.json(await getChannelSummary(channelId, user.id));
 });

@@ -15,6 +15,12 @@ Direct conversations are represented as participant-scoped rooms and are visible
 
 **How to apply:** Keep direct-room identity deterministic for each participant pair, never expose direct rooms in the public channel list, and keep moderation permissions enforced server-side.
 
+Direct rooms may be left by either participant, including the room creator; reopening an existing direct room restores the requesting participant's membership.
+
+**Why:** A direct-message creator is a participant, not an owner with channel-lifecycle responsibilities, so blocking them from leaving makes private conversations effectively permanent.
+
+**How to apply:** Keep the creator restriction only for regular channels, clear the departed room from the active client state, and restore membership when the deterministic direct room is opened again.
+
 Notifications are grouped and filterable by chat, mentions, unread, and other workflow events; per-item read/unread toggles coexist with mark-all-read, and polling alerts only announce newly observed unread records.
 
 **Why:** Chat activity should be actionable without making the notification center noisy or repeatedly alerting for old records.

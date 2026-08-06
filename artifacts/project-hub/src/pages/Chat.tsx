@@ -132,6 +132,7 @@ export default function ChatPage() {
   const [isDirectDialogOpen, setIsDirectDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false)
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
   const [channelName, setChannelName] = useState("")
   const [channelDescription, setChannelDescription] = useState("")
   const [message, setMessage] = useState("")
@@ -160,8 +161,9 @@ export default function ChatPage() {
     },
   })
   const channels = channelsQuery.data ?? []
-  const activeChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels[0] ?? null
+  const activeChannel = channels.find((channel) => channel.id === selectedChannelId) ?? channels.find((channel) => channel.joined) ?? null
   const activeChannelId = activeChannel?.id ?? 0
+  const canLeaveActiveChannel = Boolean(activeChannel && (activeChannel.channelType === "direct" || activeChannel.createdBy !== user?.id))
   const messagesQuery = useListChatMessages(activeChannelId, {
     query: {
       enabled: Boolean(activeChannel),
@@ -216,9 +218,9 @@ export default function ChatPage() {
   }, [channels, conversationSearch])
 
   useEffect(() => {
-    if (!selectedChannelId && channels[0]) setSelectedChannelId(channels[0].id)
+    if (!selectedChannelId && channels.length) setSelectedChannelId(channels.find((channel) => channel.joined)?.id ?? null)
     if (selectedChannelId && channels.length && !channels.some((channel) => channel.id === selectedChannelId)) {
-      setSelectedChannelId(channels[0]?.id ?? null)
+      setSelectedChannelId(channels.find((channel) => channel.joined)?.id ?? null)
     }
   }, [channels, selectedChannelId])
 
@@ -366,13 +368,32 @@ export default function ChatPage() {
     })
   }
 
+  function requestLeaveActiveChannel() {
+    if (!activeChannel || !canLeaveActiveChannel) return
+    setIsLeaveDialogOpen(true)
+  }
+
   function leaveActiveChannel() {
     if (!activeChannel) return
     leaveChannel.mutate({ channelId: activeChannel.id }, {
       onSuccess: () => {
+        const leftChannelId = activeChannel.id
+        const leftChannelName = activeChannel.name
+        const nextChannels = channels
+          .filter((channel) => channel.id !== leftChannelId || channel.channelType !== "direct")
+          .map((channel) => channel.id === leftChannelId ? { ...channel, joined: false, unreadCount: 0 } : channel)
+        queryClient.setQueryData<ChatChannel[]>(getListChatChannelsQueryKey(), nextChannels)
+        queryClient.removeQueries({ queryKey: getListChatMessagesQueryKey(leftChannelId), exact: true })
         setAttachment(null)
+        setReplyTo(null)
+        setMessageSearch("")
+        setIsMessageSearchOpen(false)
+        setIsMembersDialogOpen(false)
+        setIsLeaveDialogOpen(false)
+        setSelectedChannelId(null)
+        setIsMobileChatOpen(false)
         queryClient.invalidateQueries({ queryKey: getListChatChannelsQueryKey() })
-        toast({ title: `Left #${activeChannel.name}` })
+        toast({ title: `Left ${activeChannel.channelType === "direct" ? "conversation" : `#${leftChannelName}`}` })
       },
       onError: (error) => toast({ title: "Could not leave channel", description: error instanceof Error ? error.message : "Please try again." }),
     })
@@ -539,7 +560,7 @@ export default function ChatPage() {
                            <Users className="h-4 w-4" /> View members
                          </button>
                          {activeChannel.joined ? (
-                           <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10" onClick={leaveActiveChannel} disabled={activeChannel.createdBy === user?.id}>
+                           <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10" onClick={requestLeaveActiveChannel} disabled={!canLeaveActiveChannel || leaveChannel.isPending}>
                              <LogOut className="h-4 w-4" /> Leave conversation
                            </button>
                          ) : (
@@ -550,7 +571,7 @@ export default function ChatPage() {
                        </PopoverContent>
                      </Popover>
                    {activeChannel.joined ? (
-                      <Button variant="outline" size="sm" onClick={leaveActiveChannel} disabled={leaveChannel.isPending || activeChannel.createdBy === user?.id} title={activeChannel.createdBy === user?.id ? "Channel creators cannot leave their channel" : "Leave channel"} data-testid="button-leave-chat-channel">
+                       <Button variant="outline" size="sm" onClick={requestLeaveActiveChannel} disabled={leaveChannel.isPending || !canLeaveActiveChannel} title={!canLeaveActiveChannel ? "Channel creators cannot leave their channel" : "Leave channel"} data-testid="button-leave-chat-channel">
                         {leaveChannel.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <LogOut className="mr-1.5 h-3.5 w-3.5" />}<span className="hidden sm:inline">Leave</span>
                       </Button>
                    ) : (
@@ -824,6 +845,23 @@ export default function ChatPage() {
            </div>
            <DialogFooter>
              <Button variant="outline" onClick={() => setIsMembersDialogOpen(false)}>Close</Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
+       <Dialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>Leave this conversation?</DialogTitle>
+             <DialogDescription>
+               You will stop receiving messages here and the conversation will be removed from your chat list. You can join this channel again later.
+             </DialogDescription>
+           </DialogHeader>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setIsLeaveDialogOpen(false)} disabled={leaveChannel.isPending}>Cancel</Button>
+             <Button variant="destructive" onClick={leaveActiveChannel} disabled={leaveChannel.isPending}>
+               {leaveChannel.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
+               Leave conversation
+             </Button>
            </DialogFooter>
          </DialogContent>
        </Dialog>
