@@ -19,7 +19,7 @@ import {
   UploadGalleryMediaResponse,
 } from "@workspace/api-zod";
 import { requireCurrentUser } from "../lib/portalAuth";
-import { downloadDriveFile, getDriveFileId, uploadGalleryMediaToGoogleDrive } from "../lib/googleDrive";
+import { deleteDriveFile, downloadDriveFile, getDriveFileId, uploadGalleryMediaToGoogleDrive } from "../lib/googleDrive";
 import { isDriveFilePath } from "../lib/googleDrive";
 
 const router: IRouter = Router();
