@@ -1845,6 +1845,108 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /gallery/albums:
+    get:
+      operationId: listGalleryAlbums
+      tags: [gallery]
+      summary: List gallery albums
+      parameters:
+        - name: projectName
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Gallery albums
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GalleryAlbum"
+    post:
+      operationId: createGalleryAlbum
+      tags: [gallery]
+      summary: Create a project gallery album
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GalleryAlbumInput"
+      responses:
+        "201":
+          description: Created gallery album
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryAlbum"
+  /gallery/albums/{id}:
+    get:
+      operationId: getGalleryAlbum
+      tags: [gallery]
+      summary: Get a gallery album and its media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Gallery album
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryAlbumDetail"
+        "404":
+          description: Album not found
+  /gallery/albums/{id}/media:
+    post:
+      operationId: uploadGalleryMedia
+      tags: [gallery]
+      summary: Upload a photo or video to a gallery album
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: X-File-Name
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-File-Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Uploaded gallery media
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GalleryMedia"
+        "409":
+          description: Google Drive is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /gallery/media/{id}:
+    get:
+      operationId: getGalleryMedia
+      tags: [gallery]
+      summary: Stream gallery media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Gallery photo or video
+        "404":
+          description: Gallery media not found
 components:
   parameters:
     Id:
@@ -1909,6 +2011,68 @@ components:
           type: string
           minLength: 1
       required: [name]
+    GalleryAlbum:
+      type: object
+      properties:
+        id:
+          type: number
+        projectName:
+          type: string
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        uploaderName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        mediaCount:
+          type: number
+      required: [id, projectName, name, description, uploaderName, createdAt, mediaCount]
+    GalleryAlbumInput:
+      type: object
+      properties:
+        projectName:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+      required: [projectName, name]
+    GalleryMedia:
+      type: object
+      properties:
+        id:
+          type: number
+        albumId:
+          type: number
+        filePath:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: number
+        contentType:
+          type: string
+        uploaderName:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+      required: [id, albumId, filePath, fileName, fileSize, contentType, uploaderName, uploadedAt]
+    GalleryAlbumDetail:
+      allOf:
+        - $ref: "#/components/schemas/GalleryAlbum"
+        - type: object
+          properties:
+            media:
+              type: array
+              items:
+                $ref: "#/components/schemas/GalleryMedia"
+          required: [media]
     ProjectNote:
       type: object
       properties:

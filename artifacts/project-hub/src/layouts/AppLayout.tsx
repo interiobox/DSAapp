@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useLocation } from "wouter"
-import { Archive, BarChart3, Bell, BookOpen, CalendarDays, ClipboardCheck, FileText, FileWarning, FolderKanban, History, Layers, ListChecks, LogOut, Menu, MessageSquare, Settings, ShieldCheck, Users, UserRoundCog, UsersRound } from "lucide-react"
+import { Archive, BarChart3, Bell, BookOpen, CalendarDays, ClipboardCheck, FileText, FileWarning, FolderKanban, History, Images, Layers, ListChecks, LogOut, Menu, MessageSquare, Settings, ShieldCheck, Users, UserRoundCog, UsersRound } from "lucide-react"
 import { getListNotificationsQueryKey, useListNotifications } from "@workspace/api-client-react"
 import { cn } from "@/lib/utils"
 import { usePortalAuth } from "@/App"
@@ -74,6 +74,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <NavItem href="/archive" icon={Archive}>Recycle bin</NavItem>
       <NavItem href="/settings" icon={Settings}>Settings</NavItem>
       <NavItem href="/attendance" icon={ClipboardCheck}>Attendance register</NavItem>
+      <NavItem href="/gallery" icon={Images}>Project Gallery</NavItem>
       {user?.role === "admin" && (
         <>
           <NavItem href="/team" icon={UsersRound}>Team directory</NavItem>

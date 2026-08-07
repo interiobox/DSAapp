@@ -22,6 +22,7 @@ import SettingsPage from "@/pages/Settings";
 import Dashboard from "@/pages/Dashboard";
 import ContactsPage from "@/pages/Contacts";
 import AttendancePage from "@/pages/Attendance";
+import GalleryPage from "@/pages/Gallery";
 import { Layers } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -241,6 +242,7 @@ function ProtectedRoutes() {
         <Route path="/feed" component={MyFeed} />
         <Route path="/admin" component={AdminPage} />
         <Route path="/attendance" component={AttendanceRoute} />
+        <Route path="/gallery" component={GalleryPage} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

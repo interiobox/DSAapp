@@ -62,6 +62,10 @@ import type {
   DrawingUploadPreflight,
   DrawingUploadPreflightInput,
   ErrorEnvelope,
+  GalleryAlbum,
+  GalleryAlbumDetail,
+  GalleryAlbumInput,
+  GalleryMedia,
   GetMyAttendanceMonthParams,
   GetMyAttendanceParams,
   GoogleDriveStatus,
@@ -69,6 +73,7 @@ import type {
   ListAttendanceParams,
   ListContactsParams,
   ListDrawingsParams,
+  ListGalleryAlbumsParams,
   ListProjectChecklistsParams,
   ListProjectNotesParams,
   LoginInput,
@@ -7467,6 +7472,387 @@ export function useGetDriveFile<TData = Awaited<ReturnType<typeof getDriveFile>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetDriveFileQueryOptions(fileId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListGalleryAlbumsUrl = (params?: ListGalleryAlbumsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/gallery/albums?${stringifiedParams}` : `/api/gallery/albums`
+}
+
+/**
+ * @summary List gallery albums
+ */
+export const listGalleryAlbums = async (params?: ListGalleryAlbumsParams, options?: Parameters<typeof customFetch>[1]): Promise<GalleryAlbum[]> => {
+
+  return customFetch<GalleryAlbum[]>(getListGalleryAlbumsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGalleryAlbumsQueryKey = (params?: ListGalleryAlbumsParams,) => {
+    return [
+    `/api/gallery/albums`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListGalleryAlbumsQueryOptions = <TData = Awaited<ReturnType<typeof listGalleryAlbums>>, TError = ErrorType<unknown>>(params?: ListGalleryAlbumsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGalleryAlbums>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGalleryAlbumsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGalleryAlbums>>> = ({ signal }) => listGalleryAlbums(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGalleryAlbums>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGalleryAlbumsQueryResult = NonNullable<Awaited<ReturnType<typeof listGalleryAlbums>>>
+export type ListGalleryAlbumsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List gallery albums
+ */
+
+export function useListGalleryAlbums<TData = Awaited<ReturnType<typeof listGalleryAlbums>>, TError = ErrorType<unknown>>(
+ params?: ListGalleryAlbumsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGalleryAlbums>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGalleryAlbumsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateGalleryAlbumUrl = () => {
+
+
+
+
+  return `/api/gallery/albums`
+}
+
+/**
+ * @summary Create a project gallery album
+ */
+export const createGalleryAlbum = async (galleryAlbumInput: GalleryAlbumInput, options?: Parameters<typeof customFetch>[1]): Promise<GalleryAlbum> => {
+
+  return customFetch<GalleryAlbum>(getCreateGalleryAlbumUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(galleryAlbumInput)
+  }
+);}
+
+
+
+
+
+export const getCreateGalleryAlbumMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGalleryAlbum>>, TError,{data: BodyType<GalleryAlbumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGalleryAlbum>>, TError,{data: BodyType<GalleryAlbumInput>}, TContext> => {
+
+const mutationKey = ['createGalleryAlbum'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGalleryAlbum>>, {data: BodyType<GalleryAlbumInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createGalleryAlbum(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGalleryAlbumMutationResult = NonNullable<Awaited<ReturnType<typeof createGalleryAlbum>>>
+    export type CreateGalleryAlbumMutationBody = BodyType<GalleryAlbumInput>
+    export type CreateGalleryAlbumMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a project gallery album
+ */
+export const useCreateGalleryAlbum = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGalleryAlbum>>, TError,{data: BodyType<GalleryAlbumInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGalleryAlbum>>,
+        TError,
+        {data: BodyType<GalleryAlbumInput>},
+        TContext
+      > => {
+      return useMutation(getCreateGalleryAlbumMutationOptions(options));
+    }
+
+export const getGetGalleryAlbumUrl = (id: number,) => {
+
+
+
+
+  return `/api/gallery/albums/${id}`
+}
+
+/**
+ * @summary Get a gallery album and its media
+ */
+export const getGalleryAlbum = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<GalleryAlbumDetail> => {
+
+  return customFetch<GalleryAlbumDetail>(getGetGalleryAlbumUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGalleryAlbumQueryKey = (id: number,) => {
+    return [
+    `/api/gallery/albums/${id}`
+    ] as const;
+    }
+
+
+export const getGetGalleryAlbumQueryOptions = <TData = Awaited<ReturnType<typeof getGalleryAlbum>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGalleryAlbum>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGalleryAlbumQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGalleryAlbum>>> = ({ signal }) => getGalleryAlbum(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGalleryAlbum>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGalleryAlbumQueryResult = NonNullable<Awaited<ReturnType<typeof getGalleryAlbum>>>
+export type GetGalleryAlbumQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a gallery album and its media
+ */
+
+export function useGetGalleryAlbum<TData = Awaited<ReturnType<typeof getGalleryAlbum>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGalleryAlbum>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGalleryAlbumQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadGalleryMediaUrl = (id: number,) => {
+
+
+
+
+  return `/api/gallery/albums/${id}/media`
+}
+
+/**
+ * @summary Upload a photo or video to a gallery album
+ */
+export const uploadGalleryMedia = async (id: number,
+    uploadGalleryMediaBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<GalleryMedia> => {
+
+  return customFetch<GalleryMedia>(getUploadGalleryMediaUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', ...options?.headers },
+    body: uploadGalleryMediaBody
+  }
+);}
+
+
+
+
+
+export const getUploadGalleryMediaMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadGalleryMedia>>, TError,{id: number;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadGalleryMedia>>, TError,{id: number;data: BodyType<Blob>}, TContext> => {
+
+const mutationKey = ['uploadGalleryMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadGalleryMedia>>, {id: number;data: BodyType<Blob>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  uploadGalleryMedia(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadGalleryMediaMutationResult = NonNullable<Awaited<ReturnType<typeof uploadGalleryMedia>>>
+    export type UploadGalleryMediaMutationBody = BodyType<Blob>
+    export type UploadGalleryMediaMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Upload a photo or video to a gallery album
+ */
+export const useUploadGalleryMedia = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadGalleryMedia>>, TError,{id: number;data: BodyType<Blob>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadGalleryMedia>>,
+        TError,
+        {id: number;data: BodyType<Blob>},
+        TContext
+      > => {
+      return useMutation(getUploadGalleryMediaMutationOptions(options));
+    }
+
+export const getGetGalleryMediaUrl = (id: number,) => {
+
+
+
+
+  return `/api/gallery/media/${id}`
+}
+
+/**
+ * @summary Stream gallery media
+ */
+export const getGalleryMedia = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getGetGalleryMediaUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGalleryMediaQueryKey = (id: number,) => {
+    return [
+    `/api/gallery/media/${id}`
+    ] as const;
+    }
+
+
+export const getGetGalleryMediaQueryOptions = <TData = Awaited<ReturnType<typeof getGalleryMedia>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGalleryMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGalleryMediaQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGalleryMedia>>> = ({ signal }) => getGalleryMedia(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGalleryMedia>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGalleryMediaQueryResult = NonNullable<Awaited<ReturnType<typeof getGalleryMedia>>>
+export type GetGalleryMediaQueryError = ErrorType<void>
+
+
+/**
+ * @summary Stream gallery media
+ */
+
+export function useGetGalleryMedia<TData = Awaited<ReturnType<typeof getGalleryMedia>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGalleryMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGalleryMediaQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

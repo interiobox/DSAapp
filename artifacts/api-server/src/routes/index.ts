@@ -17,6 +17,7 @@ import notesRouter from "./notes";
 import recycleBinRouter from "./recycleBin";
 import googleDriveRouter from "./googleDrive";
 import attendanceRouter from "./attendance";
+import galleryRouter from "./gallery";
 import { authenticatePortalUser } from "../lib/portalAuth";
 
 const router: IRouter = Router();
@@ -29,6 +30,7 @@ router.use((req, res, next): void => {
 router.use(adminRouter);
 router.use(googleDriveRouter);
 router.use(attendanceRouter);
+router.use(galleryRouter);
 router.use(disciplinesRouter);
 router.use(categoriesRouter);
 router.use(drawingsRouter);

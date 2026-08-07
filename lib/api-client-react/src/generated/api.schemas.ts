@@ -29,6 +29,40 @@ export interface ProjectInput {
   name: string;
 }
 
+export interface GalleryAlbum {
+  id: number;
+  projectName: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  uploaderName: string;
+  createdAt: string;
+  mediaCount: number;
+}
+
+export interface GalleryAlbumInput {
+  /** @minLength 1 */
+  projectName: string;
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+}
+
+export interface GalleryMedia {
+  id: number;
+  albumId: number;
+  filePath: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  uploaderName: string;
+  uploadedAt: string;
+}
+
+export type GalleryAlbumDetail = GalleryAlbum & {
+  media: GalleryMedia[];
+};
+
 export interface ProjectNote {
   id: number;
   projectName: string;
@@ -917,5 +951,9 @@ date?: string;
 export type AdminCompleteGoogleDriveOAuthParams = {
 code?: string;
 state?: string;
+};
+
+export type ListGalleryAlbumsParams = {
+projectName?: string;
 };
 

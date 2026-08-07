@@ -8,3 +8,4 @@ export * from "./contacts";
 export * from "./notes";
 export * from "./googleDrive";
 export * from "./attendance";
+export * from "./gallery";

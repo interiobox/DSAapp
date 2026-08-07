@@ -289,6 +289,30 @@ export async function uploadDrawingToGoogleDrive(input: {
   return await response.json() as DriveFile;
 }
 
+export async function uploadGalleryMediaToGoogleDrive(input: {
+  projectName: string;
+  albumName: string;
+  fileName: string;
+  contentType: string;
+  body: Buffer;
+}) {
+  const authorized = await getAuthorizedClient();
+  if (!authorized) return null;
+  const rootFolderId = await ensureConnectedRoot(authorized.accessToken, authorized.connection);
+  const projectFolder = await ensureFolder(authorized.accessToken, rootFolderId, input.projectName);
+  const albumFolder = await ensureFolder(authorized.accessToken, projectFolder, input.albumName);
+  const metadata = { name: input.fileName, parents: [albumFolder] };
+  const form = new FormData();
+  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+  form.append("file", new Blob([new Uint8Array(input.body)], { type: input.contentType }), input.fileName);
+  const response = await driveFetch(authorized.accessToken, `${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,size,createdTime,modifiedTime`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) throw new Error(`Google Drive upload failed (${response.status}).`);
+  return await response.json() as DriveFile;
+}
+
 async function ensureDrawingFolder(accessToken: string, rootFolderId: string, input: {
   projectName: string;
   category: string;

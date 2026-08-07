@@ -2221,3 +2221,118 @@ export const GetDriveFileParams = zod.object({
 export const GetDriveFileResponse = zod.unknown()
 
 
+/**
+ * @summary List gallery albums
+ */
+export const ListGalleryAlbumsQueryParams = zod.object({
+  "projectName": zod.coerce.string().optional()
+})
+
+export const ListGalleryAlbumsResponseItem = zod.object({
+  "id": zod.number(),
+  "projectName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "uploaderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "mediaCount": zod.number()
+})
+export const ListGalleryAlbumsResponse = zod.array(ListGalleryAlbumsResponseItem)
+
+
+/**
+ * @summary Create a project gallery album
+ */
+
+
+
+
+export const CreateGalleryAlbumBody = zod.object({
+  "projectName": zod.string().min(1),
+  "name": zod.string().min(1),
+  "description": zod.string().optional()
+})
+
+export const CreateGalleryAlbumResponse = zod.object({
+  "id": zod.number(),
+  "projectName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "uploaderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "mediaCount": zod.number()
+})
+
+
+/**
+ * @summary Get a gallery album and its media
+ */
+
+
+
+export const GetGalleryAlbumParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const GetGalleryAlbumResponse = zod.object({
+  "id": zod.number(),
+  "projectName": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "uploaderName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "mediaCount": zod.number()
+}).and(zod.object({
+  "media": zod.array(zod.object({
+  "id": zod.number(),
+  "albumId": zod.number(),
+  "filePath": zod.string(),
+  "fileName": zod.string(),
+  "fileSize": zod.number(),
+  "contentType": zod.string(),
+  "uploaderName": zod.string(),
+  "uploadedAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Upload a photo or video to a gallery album
+ */
+
+
+
+export const UploadGalleryMediaParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const UploadGalleryMediaHeader = zod.object({
+  "X-File-Name": zod.string(),
+  "X-File-Content-Type": zod.string()
+})
+
+export const UploadGalleryMediaResponse = zod.object({
+  "id": zod.number(),
+  "albumId": zod.number(),
+  "filePath": zod.string(),
+  "fileName": zod.string(),
+  "fileSize": zod.number(),
+  "contentType": zod.string(),
+  "uploaderName": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Stream gallery media
+ */
+
+
+
+export const GetGalleryMediaParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const GetGalleryMediaResponse = zod.unknown()
+
+
