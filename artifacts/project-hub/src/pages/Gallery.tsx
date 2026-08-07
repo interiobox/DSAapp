@@ -1,14 +1,17 @@
 import * as React from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQueries, useQueryClient } from "@tanstack/react-query"
 import {
   ArrowDownToLine,
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   Check,
   ChevronDown,
+  ChevronLeft,
   Cloud,
   ExternalLink,
   FileImage,
+  FolderOpen,
   Grid2X2,
   Images,
   Info,
@@ -26,6 +29,7 @@ import {
 import {
   getGetGalleryAlbumQueryKey,
   getListGalleryAlbumsQueryKey,
+  getGalleryAlbum,
   useAdminGetGoogleDriveStatus,
   useCreateGalleryAlbum,
   useDeleteGalleryMedia,
@@ -53,7 +57,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -130,6 +133,16 @@ export default function GalleryPage() {
     const query = albumSearch.trim().toLowerCase()
     return (albums ?? []).filter((album) => !query || `${album.name} ${album.projectName}`.toLowerCase().includes(query))
   }, [albums, albumSearch])
+  const albumDetailQueries = useQueries({
+    queries: filteredAlbums.map((album) => ({
+      queryKey: getGetGalleryAlbumQueryKey(album.id),
+      queryFn: () => getGalleryAlbum(album.id),
+      staleTime: 60_000,
+    })),
+  })
+  const albumMediaById = React.useMemo(() => new Map(
+    filteredAlbums.map((album, index) => [album.id, albumDetailQueries[index]?.data?.media ?? []]),
+  ), [albumDetailQueries, filteredAlbums])
 
   const media = albumQuery.data?.media ?? []
   const visibleMedia = React.useMemo(() => {
@@ -261,9 +274,9 @@ export default function GalleryPage() {
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-sm border border-primary/25 bg-primary/10 p-2 text-primary"><Images className="h-5 w-5" /></div>
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-primary">Field archive / visual record</p>
-                <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl" data-testid="text-gallery-title">Project gallery</h1>
-                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">A dependable visual record for site teams, filed directly into the project archive.</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-primary">Visual archive</p>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl" data-testid="text-gallery-title">Gallery</h1>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Browse project moments by album, then open the full-resolution record when you need it.</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -276,68 +289,79 @@ export default function GalleryPage() {
               <Button data-testid="button-new-album" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />New album</Button>
             </div>
           </div>
-          <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(200px,280px)_minmax(220px,1fr)]">
+          {!selectedAlbum && <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input data-testid="input-album-search" value={albumSearch} onChange={(event) => setAlbumSearch(event.target.value)} className="h-11 bg-background pl-9" placeholder="Search albums or projects" />
+            </div>
             <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger data-testid="select-project-filter" className="bg-background"><SelectValue placeholder="All projects" /></SelectTrigger>
+              <SelectTrigger data-testid="select-project-filter" className="h-11 w-full bg-background sm:w-[220px]"><SelectValue placeholder="All projects" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All projects</SelectItem>
                 {(projects ?? []).map((project) => <SelectItem data-testid={`option-project-${project.id}`} key={project.id} value={project.name}>{project.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input data-testid="input-album-search" value={albumSearch} onChange={(event) => setAlbumSearch(event.target.value)} className="bg-background pl-9" placeholder="Search albums or projects" />
-            </div>
-          </div>
+          </div>}
         </div>
       </header>
 
       <main className="min-h-0 flex-1 overflow-auto px-3 py-4 sm:px-6 sm:py-6">
-        <div className="mx-auto grid max-w-[1500px] gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="min-w-0">
-            <Card className="rounded-sm border-border/70">
-              <CardHeader className="border-b border-border/50 px-4 py-4">
-                <div className="flex items-end justify-between gap-3">
-                  <div><CardTitle className="text-base">Albums</CardTitle><CardDescription data-testid="text-album-count">{albums?.length ?? 0} project albums</CardDescription></div>
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Drive index</span>
+        <div className="mx-auto max-w-[1500px]">
+          {!selectedAlbum ? (
+            <section data-testid="albums-browser">
+              <div className="mb-5 flex items-end justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">Your albums</p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight">Albums</h2>
+                  <p className="mt-1 text-sm text-muted-foreground" data-testid="text-album-count">{filteredAlbums.length} {filteredAlbums.length === 1 ? "album" : "albums"} in this view</p>
                 </div>
-              </CardHeader>
-              <CardContent className="p-2">
-                {albumsQuery.isLoading ? (
-                  <div className="space-y-2 p-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
-                ) : albumsQuery.isError ? (
-                  <Alert variant="destructive" className="m-2"><AlertTitle>Albums unavailable</AlertTitle><AlertDescription>We could not read the Drive index. Refresh to try again.</AlertDescription></Alert>
-                ) : filteredAlbums.length ? (
-                  <ScrollArea className="max-h-[min(60dvh,560px)]">
-                    <div className="space-y-1 pr-1">
-                      {filteredAlbums.map((album) => (
-                        <button data-testid={`button-album-${album.id}`} key={album.id} type="button" onClick={() => setSelectedAlbumId(album.id)} className={`group w-full rounded-sm border px-3 py-3 text-left transition-colors ${selectedAlbumId === album.id ? "border-primary bg-primary text-primary-foreground" : "border-transparent hover:border-border hover:bg-muted/60"}`}>
-                          <div className="flex items-start justify-between gap-2"><span className="truncate text-sm font-semibold">{album.name}</span><span className={`shrink-0 font-mono text-xs ${selectedAlbumId === album.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{album.mediaCount}</span></div>
-                          <p className={`mt-1 truncate text-xs ${selectedAlbumId === album.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{album.projectName}</p>
-                          <p className={`mt-2 font-mono text-[10px] uppercase tracking-wider ${selectedAlbumId === album.id ? "text-primary-foreground/60" : "text-muted-foreground/70"}`}>{formatDate(album.createdAt)}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  <div className="p-6 text-center text-sm text-muted-foreground" data-testid="empty-albums">No albums match this view. Create an album to start collecting site media.</div>
-                )}
-              </CardContent>
-            </Card>
-          </aside>
-
-          <section className="min-w-0">
-            {!selectedAlbum ? (
-              <Card className="rounded-sm border-border/70">
-                <div className="flex min-h-[480px] flex-col items-center justify-center p-8 text-center">
-                  <div className="mb-5 border border-dashed border-primary/35 bg-primary/5 p-5 text-primary"><FileImage className="h-10 w-10" /></div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">Archive is ready</p>
-                  <h2 className="mt-2 text-xl font-semibold">Build your project gallery</h2>
-                  <p className="mt-2 max-w-md text-sm text-muted-foreground">Create an album, choose its project, and upload the photos or videos that explain what changed on site.</p>
-                  <Button data-testid="button-create-first-album" className="mt-6" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Create first album</Button>
+                <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:inline-flex"><FolderOpen className="h-4 w-4" />Organized by project</span>
+              </div>
+              {albumsQuery.isLoading ? (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {[1, 2, 3, 4].map((item) => <div key={item} className="overflow-hidden rounded-md border border-border/70 bg-card"><Skeleton className="aspect-[1.28] w-full" /><div className="space-y-2 p-4"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div></div>)}
                 </div>
-              </Card>
-            ) : (
+              ) : albumsQuery.isError ? (
+                <Alert variant="destructive"><AlertTitle>Albums unavailable</AlertTitle><AlertDescription>We could not read the Drive index. Refresh to try again.</AlertDescription></Alert>
+              ) : filteredAlbums.length ? (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredAlbums.map((album, albumIndex) => {
+                    const coverMedia = albumMediaById.get(album.id) ?? []
+                    const isCoverLoading = albumDetailQueries[albumIndex]?.isLoading
+                    return (
+                      <button data-testid={`button-album-${album.id}`} key={album.id} type="button" onClick={() => setSelectedAlbumId(album.id)} className="group overflow-hidden rounded-md border border-border/70 bg-card text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <div className="relative aspect-[1.28] overflow-hidden bg-muted">
+                          {coverMedia.length > 0 ? (
+                            <div className="grid h-full grid-cols-2 grid-rows-2 gap-0.5 bg-background">
+                              {coverMedia.slice(0, 4).map((item) => isVideo(item.contentType) ? <video key={item.id} className="h-full w-full object-cover" src={`/api/gallery/media/${item.id}`} preload="metadata" /> : <img key={item.id} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" src={`/api/gallery/media/${item.id}`} alt="" loading="lazy" />)}
+                              {Array.from({ length: Math.max(0, 4 - coverMedia.length) }).map((_, index) => <div key={`empty-${index}`} className="bg-primary/10" />)}
+                            </div>
+                          ) : isCoverLoading ? <Skeleton className="h-full w-full rounded-none" /> : <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/15 via-primary/5 to-muted text-primary/65"><Images className="h-12 w-12" /></div>}
+                          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-10 text-white"><span className="truncate text-xs font-medium">{album.projectName}</span><span className="font-mono text-[10px]">{album.mediaCount} {album.mediaCount === 1 ? "item" : "items"}</span></div>
+                        </div>
+                        <div className="space-y-2 p-4">
+                          <div className="flex items-start justify-between gap-3"><h3 className="line-clamp-2 text-sm font-semibold leading-snug">{album.name}</h3><ChevronDown className="mt-0.5 h-4 w-4 shrink-0 -rotate-90 text-muted-foreground transition-transform group-hover:translate-x-0.5" /></div>
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />{formatDate(album.createdAt)}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <Card className="rounded-md border-border/70">
+                  <div className="flex min-h-[400px] flex-col items-center justify-center p-8 text-center">
+                    <div className="mb-5 rounded-full border border-dashed border-primary/35 bg-primary/5 p-5 text-primary"><FileImage className="h-10 w-10" /></div>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">{albumSearch || projectFilter !== "all" ? "No matching albums" : "Your archive is ready"}</p>
+                    <h2 className="mt-2 text-xl font-semibold">{albumSearch || projectFilter !== "all" ? "Try another search" : "Create your first album"}</h2>
+                    <p className="mt-2 max-w-md text-sm text-muted-foreground">{albumSearch || projectFilter !== "all" ? "Clear the filters to see every project album." : "Collect site visits, progress photos, and project moments in one visual archive."}</p>
+                    {!albumSearch && projectFilter === "all" && <Button data-testid="button-create-first-album" className="mt-6" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Create first album</Button>}
+                  </div>
+                </Card>
+              )}
+            </section>
+          ) : (
+            <section className="min-w-0">
+              <Button type="button" variant="ghost" className="mb-3 -ml-2" onClick={() => setSelectedAlbumId(null)}><ChevronLeft className="mr-1 h-4 w-4" />All albums</Button>
               <Card className="min-w-0 rounded-sm border-border/70">
                 <CardHeader className="border-b border-border/50 px-4 py-4 sm:px-6">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -408,8 +432,8 @@ export default function GalleryPage() {
                   )}
                 </CardContent>
               </Card>
-            )}
-          </section>
+            </section>
+          )}
         </div>
       </main>
 
