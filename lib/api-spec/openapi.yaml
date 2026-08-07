@@ -1947,6 +1947,21 @@ paths:
           description: Gallery photo or video
         "404":
           description: Gallery media not found
+    delete:
+      operationId: deleteGalleryMedia
+      tags: [gallery]
+      summary: Delete gallery media from Google Drive and the register
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Gallery media deleted
+        "404":
+          description: Gallery media not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 components:
   parameters:
     Id:

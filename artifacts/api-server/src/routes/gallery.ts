@@ -195,4 +195,22 @@ router.get("/gallery/media/:id", async (req, res): Promise<void> => {
   }
 });
 
+router.delete("/gallery/media/:id", async (req, res): Promise<void> => {
+  const id = Number.parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  if (!Number.isInteger(id) || id < 1) {
+    res.status(400).json({ error: "A valid media id is required." });
+    return;
+  }
+  const [media] = await db.select().from(galleryMediaTable).where(eq(galleryMediaTable.id, id)).limit(1);
+  if (!media) {
+    res.status(404).json({ error: "Gallery media not found." });
+    return;
+  }
+  if (isDriveFilePath(media.filePath)) {
+    await deleteDriveFile(getDriveFileId(media.filePath));
+  }
+  await db.delete(galleryMediaTable).where(eq(galleryMediaTable.id, id));
+  res.sendStatus(204);
+});
+
 export default router;

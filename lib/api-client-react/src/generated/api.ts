@@ -7865,3 +7865,74 @@ export function useGetGalleryMedia<TData = Awaited<ReturnType<typeof getGalleryM
 
 
 
+export const getDeleteGalleryMediaUrl = (id: number,) => {
+
+
+
+
+  return `/api/gallery/media/${id}`
+}
+
+/**
+ * @summary Delete gallery media from Google Drive and the register
+ */
+export const deleteGalleryMedia = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteGalleryMediaUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteGalleryMediaMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGalleryMedia>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteGalleryMedia>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteGalleryMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteGalleryMedia>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteGalleryMedia(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteGalleryMediaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteGalleryMedia>>>
+
+    export type DeleteGalleryMediaMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Delete gallery media from Google Drive and the register
+ */
+export const useDeleteGalleryMedia = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGalleryMedia>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteGalleryMedia>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteGalleryMediaMutationOptions(options));
+    }
+

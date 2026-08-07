@@ -2336,3 +2336,16 @@ export const GetGalleryMediaParams = zod.object({
 export const GetGalleryMediaResponse = zod.unknown()
 
 
+/**
+ * @summary Delete gallery media from Google Drive and the register
+ */
+
+
+
+export const DeleteGalleryMediaParams = zod.object({
+  "id": zod.coerce.number().min(1)
+})
+
+export const DeleteGalleryMediaResponse = zod.void()
+
+
