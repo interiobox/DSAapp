@@ -144,6 +144,9 @@ function AdminAttendancePage() {
                                   <Check className="h-3 w-3" />
                                   Self-checked in at {formatTime(entry.selfCheckinAt)}
                                 </span>
+                                <span className="font-mono text-muted-foreground">
+                                  {entry.latitude.toFixed(6)}, {entry.longitude.toFixed(6)}
+                                </span>
                                 <a
                                   href={`https://www.google.com/maps?q=${entry.latitude},${entry.longitude}`}
                                   target="_blank"
@@ -278,6 +281,25 @@ function EmployeeAttendancePage() {
                         <div>
                           <p className="font-medium">{formatCalendarDate(entry.attendanceDate)}</p>
                           <p className="text-xs text-muted-foreground">{entry.reason ?? "Attendance recorded"}</p>
+                           {entry.latitude !== null && entry.longitude !== null && (
+                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                               <MapPin className="h-3 w-3 text-emerald-600" />
+                               <span className="font-mono text-muted-foreground">
+                                 {entry.latitude.toFixed(6)}, {entry.longitude.toFixed(6)}
+                               </span>
+                               {entry.accuracyMeters !== null && (
+                                 <span className="text-muted-foreground">±{Math.round(entry.accuracyMeters)} m</span>
+                               )}
+                               <a
+                                 href={`https://www.google.com/maps?q=${entry.latitude},${entry.longitude}`}
+                                 target="_blank"
+                                 rel="noreferrer"
+                                 className="font-medium text-primary hover:underline"
+                               >
+                                 View on map
+                               </a>
+                             </div>
+                           )}
                         </div>
                         <div className="flex items-center gap-3">
                           <Badge variant="outline" className={selected?.className}>{selected?.label ?? "Not recorded"}</Badge>

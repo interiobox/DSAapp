@@ -24,6 +24,8 @@ export default function AttendanceSelfCheckin() {
   const { data, isLoading } = useGetMyAttendance({ date: selectedDate })
   const checkin = useSelfCheckinAttendance()
   const record = data?.[0]
+  const hasLocation = record?.latitude !== null && record?.latitude !== undefined
+    && record?.longitude !== null && record?.longitude !== undefined
 
   function requestCheckin() {
     if (!navigator.geolocation) {
@@ -81,9 +83,29 @@ export default function AttendanceSelfCheckin() {
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
         {record?.selfCheckinAt ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <MapPin className="h-4 w-4 text-emerald-600" />
-            GPS evidence captured{record.accuracyMeters ? ` · ±${Math.round(record.accuracyMeters)} m accuracy` : ""}
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-emerald-600" />
+              <span>
+                Location captured
+                {record.accuracyMeters ? ` · ±${Math.round(record.accuracyMeters)} m accuracy` : ""}
+              </span>
+            </div>
+            {hasLocation && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-6">
+                <span className="font-mono text-[11px]">
+                  {record.latitude!.toFixed(6)}, {record.longitude!.toFixed(6)}
+                </span>
+                <a
+                  href={`https://www.google.com/maps?q=${record.latitude},${record.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-primary hover:underline"
+                >
+                  View on map
+                </a>
+              </div>
+            )}
           </div>
         ) : (
           <>
