@@ -1,7 +1,17 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { OAuth2Client } from "google-auth-library";
-import { db, drawingsTable, googleDriveConnectionsTable } from "@workspace/db";
+import {
+  chatChannelsTable,
+  chatMessagesTable,
+  db,
+  drawingUploadsTable,
+  drawingsTable,
+  galleryAlbumsTable,
+  galleryMediaTable,
+  googleDriveConnectionsTable,
+} from "@workspace/db";
+import { ObjectStorageService } from "./objectStorage";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3/files";
@@ -9,6 +19,7 @@ const DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder";
 const ROOT_FOLDER_NAME = "Drawing Library";
 const DELETED_DRAWINGS_FOLDER_NAME = "Deleted Drawings";
 const UNCATEGORIZED_FOLDER_NAME = "Uncategorized";
+const CHAT_ATTACHMENTS_FOLDER_NAME = "Chat Attachments";
 
 type GoogleOAuthConfig = {
   client_id: string;
@@ -197,6 +208,23 @@ async function ensureFolder(accessToken: string, parentId: string, name: string)
   return await findFolder(accessToken, parentId, name) ?? await createFolder(accessToken, parentId, name);
 }
 
+async function uploadBufferToFolder(accessToken: string, folderId: string, input: {
+  fileName: string;
+  contentType: string;
+  body: Buffer;
+}) {
+  const metadata = { name: input.fileName, parents: [folderId] };
+  const form = new FormData();
+  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+  form.append("file", new Blob([new Uint8Array(input.body)], { type: input.contentType }), input.fileName);
+  const response = await driveFetch(accessToken, `${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,size,createdTime,modifiedTime,parents`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) throw new Error(`Google Drive upload failed (${response.status}).`);
+  return await response.json() as DriveFile;
+}
+
 export function normalizeDriveCategory(category?: string | null) {
   return category?.trim() || UNCATEGORIZED_FOLDER_NAME;
 }
@@ -277,16 +305,7 @@ export async function uploadDrawingToGoogleDrive(input: {
   const projectFolder = await ensureFolder(authorized.accessToken, rootFolderId, input.projectName);
   const categoryFolder = await ensureFolder(authorized.accessToken, projectFolder, normalizeDriveCategory(input.category));
   const drawingFolder = await ensureFolder(authorized.accessToken, categoryFolder, `${input.drawingNumber} - ${input.drawingTitle}`);
-  const metadata = { name: input.fileName, parents: [drawingFolder] };
-  const form = new FormData();
-  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  form.append("file", new Blob([new Uint8Array(input.body)], { type: input.contentType }), input.fileName);
-  const response = await driveFetch(authorized.accessToken, `${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,size,createdTime,modifiedTime`, {
-    method: "POST",
-    body: form,
-  });
-  if (!response.ok) throw new Error(`Google Drive upload failed (${response.status}).`);
-  return await response.json() as DriveFile;
+  return await uploadBufferToFolder(authorized.accessToken, drawingFolder, input);
 }
 
 export async function uploadGalleryMediaToGoogleDrive(input: {
@@ -301,16 +320,133 @@ export async function uploadGalleryMediaToGoogleDrive(input: {
   const rootFolderId = await ensureConnectedRoot(authorized.accessToken, authorized.connection);
   const projectFolder = await ensureFolder(authorized.accessToken, rootFolderId, input.projectName);
   const albumFolder = await ensureFolder(authorized.accessToken, projectFolder, input.albumName);
-  const metadata = { name: input.fileName, parents: [albumFolder] };
-  const form = new FormData();
-  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  form.append("file", new Blob([new Uint8Array(input.body)], { type: input.contentType }), input.fileName);
-  const response = await driveFetch(authorized.accessToken, `${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,name,mimeType,webViewLink,webContentLink,size,createdTime,modifiedTime`, {
-    method: "POST",
-    body: form,
-  });
-  if (!response.ok) throw new Error(`Google Drive upload failed (${response.status}).`);
-  return await response.json() as DriveFile;
+  return await uploadBufferToFolder(authorized.accessToken, albumFolder, input);
+}
+
+async function readLocalObject(filePath: string) {
+  const objectStorage = new ObjectStorageService();
+  const file = await objectStorage.getObjectEntityFile(filePath);
+  const [body] = await file.download();
+  return body;
+}
+
+export async function migrateLocalFilesToGoogleDrive() {
+  const authorized = await getAuthorizedClient();
+  if (!authorized) return { migrated: 0, failed: 0 };
+  const objectStorage = new ObjectStorageService();
+  const rootFolderId = await ensureConnectedRoot(authorized.accessToken, authorized.connection);
+  let migrated = 0;
+  let failed = 0;
+
+  const drawingFiles = await db.select({
+    uploadId: drawingUploadsTable.id,
+    drawingId: drawingsTable.id,
+    filePath: drawingUploadsTable.filePath,
+    fileName: drawingUploadsTable.fileName,
+    fileSize: drawingUploadsTable.fileSize,
+    contentType: drawingUploadsTable.contentType,
+    drawingNumber: drawingsTable.drawingNumber,
+    drawingTitle: drawingsTable.title,
+    projectName: drawingsTable.projectName,
+    category: drawingsTable.discipline,
+    deletedAt: drawingsTable.deletedAt,
+    drawingAttachmentPath: drawingsTable.attachmentPath,
+  })
+    .from(drawingUploadsTable)
+    .innerJoin(drawingsTable, eq(drawingUploadsTable.drawingId, drawingsTable.id))
+    ;
+
+  for (const item of drawingFiles) {
+    if (!item.filePath.startsWith("/objects/")) continue;
+    try {
+      const body = await readLocalObject(item.filePath);
+      const folderId = await ensureDrawingFolder(authorized.accessToken, rootFolderId, {
+        projectName: item.projectName,
+        category: item.category,
+        drawingNumber: item.drawingNumber,
+        drawingTitle: item.drawingTitle,
+      }, Boolean(item.deletedAt));
+      const driveFile = await uploadBufferToFolder(authorized.accessToken, folderId, {
+        fileName: item.fileName,
+        contentType: item.contentType,
+        body,
+      });
+      const drivePath = `/drive/files/${driveFile.id}`;
+      await db.update(drawingUploadsTable).set({ filePath: drivePath }).where(eq(drawingUploadsTable.id, item.uploadId));
+      if (item.drawingAttachmentPath === item.filePath) {
+        await db.update(drawingsTable).set({ attachmentPath: drivePath, updatedAt: new Date() }).where(eq(drawingsTable.id, item.drawingId));
+      }
+      await objectStorage.deleteObjectEntity(item.filePath);
+      migrated++;
+    } catch {
+      failed++;
+    }
+  }
+
+  const galleryFiles = await db.select({
+    mediaId: galleryMediaTable.id,
+    filePath: galleryMediaTable.filePath,
+    fileName: galleryMediaTable.fileName,
+    contentType: galleryMediaTable.contentType,
+    albumName: galleryAlbumsTable.name,
+    projectName: galleryAlbumsTable.projectName,
+  })
+    .from(galleryMediaTable)
+    .innerJoin(galleryAlbumsTable, eq(galleryMediaTable.albumId, galleryAlbumsTable.id));
+
+  for (const item of galleryFiles) {
+    if (!item.filePath.startsWith("/objects/")) continue;
+    try {
+      const body = await readLocalObject(item.filePath);
+      const projectFolder = await ensureFolder(authorized.accessToken, rootFolderId, item.projectName);
+      const albumFolder = await ensureFolder(authorized.accessToken, projectFolder, item.albumName);
+      const driveFile = await uploadBufferToFolder(authorized.accessToken, albumFolder, {
+        fileName: item.fileName,
+        contentType: item.contentType,
+        body,
+      });
+      const drivePath = `/drive/files/${driveFile.id}`;
+      await db.update(galleryMediaTable).set({ filePath: drivePath }).where(eq(galleryMediaTable.id, item.mediaId));
+      await objectStorage.deleteObjectEntity(item.filePath);
+      migrated++;
+    } catch {
+      failed++;
+    }
+  }
+
+  const chatFiles = await db.select({
+    messageId: chatMessagesTable.id,
+    filePath: chatMessagesTable.attachmentPath,
+    fileName: chatMessagesTable.attachmentName,
+    fileSize: chatMessagesTable.attachmentSize,
+    contentType: chatMessagesTable.attachmentContentType,
+    channelName: chatChannelsTable.name,
+  })
+    .from(chatMessagesTable)
+    .innerJoin(chatChannelsTable, eq(chatMessagesTable.channelId, chatChannelsTable.id))
+    .where(isNull(chatMessagesTable.deletedAt));
+
+  for (const item of chatFiles) {
+    if (!item.filePath?.startsWith("/objects/") || !item.fileName) continue;
+    try {
+      const body = await readLocalObject(item.filePath);
+      const chatRoot = await ensureFolder(authorized.accessToken, rootFolderId, CHAT_ATTACHMENTS_FOLDER_NAME);
+      const channelFolder = await ensureFolder(authorized.accessToken, chatRoot, item.channelName);
+      const driveFile = await uploadBufferToFolder(authorized.accessToken, channelFolder, {
+        fileName: item.fileName,
+        contentType: item.contentType ?? "application/octet-stream",
+        body,
+      });
+      const drivePath = `/drive/files/${driveFile.id}`;
+      await db.update(chatMessagesTable).set({ attachmentPath: drivePath }).where(eq(chatMessagesTable.id, item.messageId));
+      await objectStorage.deleteObjectEntity(item.filePath);
+      migrated++;
+    } catch {
+      failed++;
+    }
+  }
+
+  return { migrated, failed };
 }
 
 async function ensureDrawingFolder(accessToken: string, rootFolderId: string, input: {

@@ -113,7 +113,9 @@ function formatFileSize(size: number | null | undefined) {
 
 function getAttachmentUrl(path: string | null | undefined) {
   if (!path) return null
-  return path.startsWith("/objects/") ? `/api/storage${path}` : path
+  if (path.startsWith("/objects/")) return `/api/storage${path}`
+  if (path.startsWith("/drive/files/")) return `/api/storage/drive-files/${encodeURIComponent(path.slice("/drive/files/".length))}`
+  return path
 }
 
 const reactionOptions = ["👍", "❤️", "😂", "🎉", "😮", "😢", "👏", "🚀"]

@@ -30,7 +30,7 @@ import {
   getGetGalleryAlbumQueryKey,
   getListGalleryAlbumsQueryKey,
   getGalleryAlbum,
-  useAdminGetGoogleDriveStatus,
+  useGetStorageStatus,
   useCreateGalleryAlbum,
   useDeleteGalleryMedia,
   useGetGalleryAlbum,
@@ -91,7 +91,7 @@ export default function GalleryPage() {
   const [projectFilter, setProjectFilter] = React.useState("all")
   const albumParams = React.useMemo(() => projectFilter === "all" ? undefined : { projectName: projectFilter }, [projectFilter])
   const albumsQuery = useListGalleryAlbums(albumParams)
-  const driveQuery = useAdminGetGoogleDriveStatus()
+  const driveQuery = useGetStorageStatus()
   const albums = albumsQuery.data
   const [selectedAlbumId, setSelectedAlbumId] = React.useState<number | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -118,9 +118,8 @@ export default function GalleryPage() {
   })
 
   React.useEffect(() => {
-    if (selectedAlbumId === null && albums?.[0]) setSelectedAlbumId(albums[0].id)
     if (selectedAlbumId !== null && albums && !albums.some((album) => album.id === selectedAlbumId)) {
-      setSelectedAlbumId(albums[0]?.id ?? null)
+      setSelectedAlbumId(null)
     }
   }, [albums, selectedAlbumId])
 
@@ -283,7 +282,7 @@ export default function GalleryPage() {
               <div className={`inline-flex items-center gap-2 rounded-sm border px-3 py-2 text-xs ${driveConnected ? "border-emerald-300/60 bg-emerald-50 text-emerald-800" : "border-amber-300/60 bg-amber-50 text-amber-900"}`} data-testid="status-google-drive">
                 <span className={`h-2 w-2 rounded-full ${driveConnected ? "bg-emerald-500" : "bg-amber-500"}`} />
                 <Cloud className="h-3.5 w-3.5" />
-                <span>{driveQuery.isLoading ? "Checking Drive" : driveConnected ? "Google Drive connected" : "Drive not connected"}</span>
+                <span>{driveQuery.isLoading ? "Checking storage" : driveConnected ? "Google Drive connected" : "Workspace storage active"}</span>
                 {driveQuery.data?.accountEmail && <span className="hidden border-l border-current/20 pl-2 font-mono text-[10px] sm:inline">{driveQuery.data.accountEmail}</span>}
               </div>
               <Button data-testid="button-new-album" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />New album</Button>
@@ -377,7 +376,7 @@ export default function GalleryPage() {
                     </div>
                   </div>
                   {files.length > 0 && !uploadState && <p className="mt-3 truncate text-xs text-muted-foreground" data-testid="text-upload-queue">{files.map((file) => file.name).join(" · ")}</p>}
-                  {uploadState && <div className="mt-4 space-y-2" data-testid="status-upload-progress"><div className="flex justify-between gap-4 text-xs text-muted-foreground"><span className="truncate">Uploading {uploadState.name} to Google Drive</span><span className="font-mono">{uploadState.current}/{uploadState.total}</span></div><Progress value={(uploadState.current / uploadState.total) * 100} /></div>}
+                   {uploadState && <div className="mt-4 space-y-2" data-testid="status-upload-progress"><div className="flex justify-between gap-4 text-xs text-muted-foreground"><span className="truncate">Uploading {uploadState.name} to cloud storage</span><span className="font-mono">{uploadState.current}/{uploadState.total}</span></div><Progress value={(uploadState.current / uploadState.total) * 100} /></div>}
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6">
                   <div className="mb-5 flex flex-col gap-3 border-b border-border/60 pb-4">

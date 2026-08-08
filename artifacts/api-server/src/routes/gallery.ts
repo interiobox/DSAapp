@@ -21,9 +21,11 @@ import {
 import { requireCurrentUser } from "../lib/portalAuth";
 import { deleteDriveFile, downloadDriveFile, getDriveFileId, uploadGalleryMediaToGoogleDrive } from "../lib/googleDrive";
 import { isDriveFilePath } from "../lib/googleDrive";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
 const MAX_MEDIA_SIZE = 100 * 1024 * 1024;
+const objectStorageService = new ObjectStorageService();
 
 async function albumWithCount(album: typeof galleryAlbumsTable.$inferSelect) {
   const media = await db.select({ id: galleryMediaTable.id })
@@ -148,12 +150,23 @@ router.post(
       contentType,
       body: req.body,
     });
-    if (!driveFile) {
-      res.status(409).json({ error: "Google Drive is not connected. Connect Drive in Admin before uploading gallery media." });
-      return;
+    let filePath: string;
+    if (driveFile) {
+      filePath = `/drive/files/${driveFile.id}`;
+    } else {
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      const uploadResponse = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        body: req.body,
+      });
+      if (!uploadResponse.ok) {
+        res.status(502).json({ error: "The media could not be saved to workspace storage." });
+        return;
+      }
+      filePath = objectStorageService.normalizeObjectEntityPath(uploadURL);
     }
     const user = requireCurrentUser(req);
-    const filePath = `/drive/files/${driveFile.id}`;
     const [{ id }] = await db.insert(galleryMediaTable).values({
       albumId: album.id,
       filePath,
@@ -175,13 +188,20 @@ router.get("/gallery/media/:id", async (req, res): Promise<void> => {
     return;
   }
   const [media] = await db.select().from(galleryMediaTable).where(eq(galleryMediaTable.id, id)).limit(1);
-  if (!media || !isDriveFilePath(media.filePath)) {
+  if (!media) {
     res.status(404).json({ error: "Gallery media not found." });
     return;
   }
-  const file = await downloadDriveFile(getDriveFileId(media.filePath));
+  const file = isDriveFilePath(media.filePath)
+    ? await downloadDriveFile(getDriveFileId(media.filePath))
+    : {
+        metadata: { mimeType: media.contentType, size: String(media.fileSize) },
+        response: await objectStorageService.downloadObject(
+          await objectStorageService.getObjectEntityFile(media.filePath),
+        ),
+      };
   if (!file) {
-    res.status(404).json({ error: "Google Drive is not connected." });
+    res.status(404).json({ error: "Stored media is unavailable." });
     return;
   }
   res.setHeader("Content-Type", file.metadata.mimeType ?? media.contentType);
@@ -208,6 +228,8 @@ router.delete("/gallery/media/:id", async (req, res): Promise<void> => {
   }
   if (isDriveFilePath(media.filePath)) {
     await deleteDriveFile(getDriveFileId(media.filePath));
+  } else {
+    await objectStorageService.deleteObjectEntity(media.filePath);
   }
   await db.delete(galleryMediaTable).where(eq(galleryMediaTable.id, id));
   res.sendStatus(204);

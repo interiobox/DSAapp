@@ -7,6 +7,7 @@ import {
   getGoogleDriveOAuthErrorMessage,
   getGoogleDriveRedirectUri,
   getGoogleDriveStatus,
+  migrateLocalFilesToGoogleDrive,
   verifyGoogleDriveState,
 } from "../lib/googleDrive";
 
@@ -39,6 +40,8 @@ router.get("/admin/google-drive/oauth/callback", async (req, res): Promise<void>
     }
     if (!code) throw new Error("Google did not return an authorization code.");
     await completeGoogleDriveConnection(code, statePayload.redirectUri, currentUser.id);
+    const migration = await migrateLocalFilesToGoogleDrive();
+    req.log.info({ migrated: migration.migrated, failed: migration.failed }, "Migrated local files to Google Drive");
     res.redirect("/admin?drive=connected");
   } catch (error) {
     req.log.error({ err: error }, "Google Drive authorization failed");

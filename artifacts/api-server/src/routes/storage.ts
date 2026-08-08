@@ -7,7 +7,7 @@ import {
 import { Router, type IRouter, type Request, type Response } from 'express';
 import express from "express";
 import { and, eq, isNull } from "drizzle-orm";
-import { db, drawingUploadsTable, drawingsTable } from "@workspace/db";
+import { db, chatMessagesTable, drawingUploadsTable, drawingsTable, galleryMediaTable } from "@workspace/db";
 import { GetDrawingParams, RecordDrawingUploadResponse } from "@workspace/api-zod";
 import { addActivity } from "../lib/drawings";
 import { requireCurrentUser } from "../lib/portalAuth";
@@ -206,15 +206,24 @@ router.get("/storage/drive-files/:fileId", async (req, res): Promise<void> => {
     res.status(400).json({ error: "File id is required" });
     return;
   }
-  const [upload] = await db.select({ filePath: drawingUploadsTable.filePath })
+  const [drawingUpload] = await db.select({ filePath: drawingUploadsTable.filePath })
     .from(drawingUploadsTable)
     .where(and(eq(drawingUploadsTable.filePath, `/drive/files/${fileId}`), isNull(drawingUploadsTable.deletedAt)))
     .limit(1);
-  if (!upload || !isDriveFilePath(upload.filePath)) {
+  const [galleryMedia] = await db.select({ filePath: galleryMediaTable.filePath })
+    .from(galleryMediaTable)
+    .where(eq(galleryMediaTable.filePath, `/drive/files/${fileId}`))
+    .limit(1);
+  const [chatMessage] = await db.select({ filePath: chatMessagesTable.attachmentPath })
+    .from(chatMessagesTable)
+    .where(and(eq(chatMessagesTable.attachmentPath, `/drive/files/${fileId}`), isNull(chatMessagesTable.deletedAt)))
+    .limit(1);
+  const filePath = drawingUpload?.filePath ?? galleryMedia?.filePath ?? chatMessage?.filePath;
+  if (!filePath || !isDriveFilePath(filePath)) {
     res.status(404).json({ error: "File not found" });
     return;
   }
-  const file = await downloadDriveFile(getDriveFileId(upload.filePath));
+  const file = await downloadDriveFile(getDriveFileId(filePath));
   if (!file) {
     res.status(404).json({ error: "Google Drive is not connected" });
     return;

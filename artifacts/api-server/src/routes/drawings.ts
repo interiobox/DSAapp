@@ -256,10 +256,6 @@ router.patch("/drawings/:id/assignment", async (req, res): Promise<void> => {
 });
 
 router.delete("/drawings/:id", async (req, res): Promise<void> => {
-  if (req.portalUser?.role !== "admin") {
-    res.status(403).json({ error: "Administrator access required to delete drawings" });
-    return;
-  }
   const parsed = DeleteDrawingParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

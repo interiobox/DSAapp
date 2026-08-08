@@ -412,11 +412,9 @@ export default function DrawingDetail() {
             <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={openDrawingEdit} data-testid="button-edit-drawing-detail">
               <Pencil className="mr-2 h-4 w-4" /> Edit
             </Button>
-             {isAdmin && (
-               <Button variant="outline" size="sm" className="text-destructive hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" onClick={handleDelete} disabled={deleteDrawing.isPending} data-testid="button-recycle-drawing-detail">
-                 <Trash2 className="mr-2 h-4 w-4" />Recycle
-               </Button>
-             )}
+             <Button variant="outline" size="sm" className="text-destructive hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60" onClick={handleDelete} disabled={deleteDrawing.isPending} data-testid="button-recycle-drawing-detail">
+               <Trash2 className="mr-2 h-4 w-4" />Recycle
+             </Button>
           </div>
           {drawing.status === 'draft' && (
             <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={() => handleStatusChange('in_review')}>
