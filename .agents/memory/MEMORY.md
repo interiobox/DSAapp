@@ -13,3 +13,4 @@
 - [Chat room membership](chat-room-membership.md) — channel membership controls posting access, and chat attachments use private object storage paths.
 - [Chat enhancements](chat-enhancements.md) — unread/read positions, global search, direct rooms, message actions, and grouped notification controls use polling.
 - [Build validation](build-validation.md) — Vite configs need safe local defaults while preserving managed workflow environment values.
+- [Artifact publishing run command](deployment-run-command.md) — keep explicit root production build/run commands when publish discovery falls back from artifact metadata.
