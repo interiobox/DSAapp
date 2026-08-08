@@ -82,10 +82,8 @@ async function getOAuthConfig(): Promise<GoogleOAuthConfig> {
     .from(googleDriveOAuthSettingsTable)
     .where(eq(googleDriveOAuthSettingsTable.id, 1))
     .limit(1);
-  if (savedSettings) return parseOAuthConfig(decrypt(savedSettings.clientJsonEncrypted));
-  const raw = process.env.GOOGLE_OAUTH_CLIENT_JSON;
-  if (!raw) throw new Error("Google OAuth client JSON has not been configured.");
-  return parseOAuthConfig(raw);
+  if (!savedSettings) throw new Error("Google OAuth client JSON has not been configured. Paste it in Admin.");
+  return parseOAuthConfig(decrypt(savedSettings.clientJsonEncrypted));
 }
 
 export async function saveGoogleDriveOAuthConfig(raw: string, userId: number) {
@@ -113,12 +111,11 @@ export async function hasGoogleDriveOAuthConfig() {
     .from(googleDriveOAuthSettingsTable)
     .where(eq(googleDriveOAuthSettingsTable.id, 1))
     .limit(1);
-  return Boolean(savedSettings || process.env.GOOGLE_OAUTH_CLIENT_JSON);
+  return Boolean(savedSettings);
 }
 
 export function getGoogleDriveRedirectUri(origin: string) {
-  return process.env.GOOGLE_DRIVE_REDIRECT_URI
-    ?? new URL("/api/admin/google-drive/oauth/callback", origin).toString();
+  return new URL("/api/admin/google-drive/oauth/callback", origin).toString();
 }
 
 async function createOAuthClient(redirectUri?: string) {
