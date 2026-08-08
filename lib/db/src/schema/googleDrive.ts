@@ -14,4 +14,12 @@ export const googleDriveConnectionsTable = mysqlTable("google_drive_connections"
   updatedAt: datetime("updated_at", { mode: "date" }).default(sql`(now())`).notNull(),
 });
 
+export const googleDriveOAuthSettingsTable = mysqlTable("google_drive_oauth_settings", {
+  id: int("id").primaryKey(),
+  clientJsonEncrypted: text("client_json_encrypted").notNull(),
+  updatedByUserId: int("updated_by_user_id").notNull(),
+  createdAt: datetime("created_at", { mode: "date" }).default(sql`(now())`).notNull(),
+  updatedAt: datetime("updated_at", { mode: "date" }).default(sql`(now())`).notNull(),
+});
+
 export type GoogleDriveConnection = typeof googleDriveConnectionsTable.$inferSelect;

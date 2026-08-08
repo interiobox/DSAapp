@@ -5,6 +5,7 @@ import { Activity as ActivityIcon, CalendarDays, Cloud, Eye, FileEdit, KeyRound,
 import {
   getAdminListActivityQueryKey,
   getAdminGetGoogleDriveStatusQueryKey,
+  useAdminSaveGoogleDriveOAuthConfig,
   useAdminDisconnectGoogleDrive,
   useAdminGetGoogleDriveStatus,
   useAdminListPersonalNotes,
@@ -23,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate, formatTime, getTodayInIST } from "@/lib/utils"
 import { usePortalAuth } from "@/App"
@@ -66,6 +68,8 @@ export default function AdminPage() {
   const [newUser, setNewUser] = React.useState<DraftUser>({ name: "", username: "", password: "", role: "user", active: true })
   const [userDrafts, setUserDrafts] = React.useState<Record<number, DraftUser>>({})
   const disconnectDrive = useAdminDisconnectGoogleDrive()
+  const saveOAuthConfig = useAdminSaveGoogleDriveOAuthConfig()
+  const [oauthJson, setOauthJson] = React.useState("")
   const userNamesById = React.useMemo(
     () => new Map((users ?? []).map((portalUser) => [String(portalUser.id), portalUser.name])),
     [users],
@@ -111,6 +115,19 @@ export default function AdminPage() {
 
   function invalidateUsers() {
     void queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() })
+  }
+
+  function saveDriveOAuthConfig(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!oauthJson.trim()) return
+    saveOAuthConfig.mutate({ data: { oauthJson } }, {
+      onSuccess: () => {
+        setOauthJson("")
+        void queryClient.invalidateQueries({ queryKey: getAdminGetGoogleDriveStatusQueryKey() })
+      toast({ title: "OAuth setup saved", description: "You can now connect this workspace to Google Drive." })
+      },
+      onError: (error) => showError("OAuth setup could not be saved", error),
+    })
   }
 
   function handleCreateUser(event: React.FormEvent<HTMLFormElement>) {
@@ -182,9 +199,10 @@ export default function AdminPage() {
             <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <span className={`h-2.5 w-2.5 rounded-full ${driveStatus?.connected ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
-                <div>
+                 <div>
                   <p className="text-sm font-medium">{driveLoading ? "Checking connection..." : driveStatus?.connected ? "Connected to Google Drive" : "Using workspace storage"}</p>
-                  <p className="text-xs text-muted-foreground">{driveStatus?.connected ? driveStatus.accountEmail || "Authorized Google account" : "Connect Drive to move new uploads away from local object storage."}</p>
+                   <p className="text-xs text-muted-foreground">{driveStatus?.connected ? driveStatus.accountEmail || "Authorized Google account" : "Uploads remain available locally until Drive is connected."}</p>
+                   {!driveLoading && <p className="mt-1 text-xs text-muted-foreground">{driveStatus?.pendingLocalFiles ?? 0} local file{driveStatus?.pendingLocalFiles === 1 ? "" : "s"} waiting to sync</p>}
                 </div>
               </div>
               {driveStatus?.connected ? (
@@ -198,10 +216,41 @@ export default function AdminPage() {
                   {disconnectDrive.isPending ? "Disconnecting..." : "Disconnect Drive"}
                 </Button>
               ) : (
-                <Button onClick={() => { window.location.href = "/api/admin/google-drive/oauth/start" }} disabled={driveLoading}>
+                 <Button onClick={() => { window.location.href = "/api/admin/google-drive/oauth/start" }} disabled={driveLoading || !driveStatus?.oauthConfigured}>
                   <Cloud className="mr-2 h-4 w-4" />Connect Google Drive
                 </Button>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Google OAuth setup</CardTitle>
+              <CardDescription>
+                Paste the complete OAuth client JSON downloaded from Google Cloud. It is accepted only here by administrators, encrypted before storage, and never shown again.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={saveDriveOAuthConfig} className="space-y-3">
+                <Textarea
+                  value={oauthJson}
+                  onChange={(event) => setOauthJson(event.target.value)}
+                  placeholder={'Paste the downloaded JSON, including the "web" or "installed" client object'}
+                  className="min-h-36 font-mono text-xs"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={100000}
+                  aria-label="Google OAuth client JSON"
+                />
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {driveStatus?.oauthConfigured ? "OAuth client configuration is saved." : "OAuth client configuration is not set up yet."}
+                  </p>
+                  <Button type="submit" disabled={saveOAuthConfig.isPending || !oauthJson.trim()}>
+                    {saveOAuthConfig.isPending ? "Saving securely..." : "Save OAuth setup"}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
 

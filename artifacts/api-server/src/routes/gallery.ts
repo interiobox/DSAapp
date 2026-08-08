@@ -19,7 +19,7 @@ import {
   UploadGalleryMediaResponse,
 } from "@workspace/api-zod";
 import { requireCurrentUser } from "../lib/portalAuth";
-import { deleteDriveFile, downloadDriveFile, getDriveFileId, uploadGalleryMediaToGoogleDrive } from "../lib/googleDrive";
+import { deleteDriveFile, downloadDriveFile, getDriveFileId } from "../lib/googleDrive";
 import { isDriveFilePath } from "../lib/googleDrive";
 import { ObjectStorageService } from "../lib/objectStorage";
 
@@ -143,29 +143,17 @@ router.post(
       res.status(404).json({ error: "Gallery album not found." });
       return;
     }
-    const driveFile = await uploadGalleryMediaToGoogleDrive({
-      projectName: album.projectName,
-      albumName: album.name,
-      fileName,
-      contentType,
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    const uploadResponse = await fetch(uploadURL, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
       body: req.body,
     });
-    let filePath: string;
-    if (driveFile) {
-      filePath = `/drive/files/${driveFile.id}`;
-    } else {
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      const uploadResponse = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": contentType },
-        body: req.body,
-      });
-      if (!uploadResponse.ok) {
-        res.status(502).json({ error: "The media could not be saved to workspace storage." });
-        return;
-      }
-      filePath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    if (!uploadResponse.ok) {
+      res.status(502).json({ error: "The media could not be saved to workspace storage." });
+      return;
     }
+    const filePath = objectStorageService.normalizeObjectEntityPath(uploadURL);
     const user = requireCurrentUser(req);
     const [{ id }] = await db.insert(galleryMediaTable).values({
       albumId: album.id,

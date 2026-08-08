@@ -74,6 +74,8 @@ export * from './galleryAlbumInput';
 export * from './galleryMedia';
 export * from './getMyAttendanceMonthParams';
 export * from './getMyAttendanceParams';
+export * from './googleDriveOAuthConfigInput';
+export * from './googleDriveOAuthConfigStatus';
 export * from './googleDriveStatus';
 export * from './googleDriveStatusProvider';
 export * from './healthStatus';

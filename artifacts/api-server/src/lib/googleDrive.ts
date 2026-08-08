@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { OAuth2Client } from "google-auth-library";
 import {
   chatChannelsTable,
@@ -10,6 +10,7 @@ import {
   galleryAlbumsTable,
   galleryMediaTable,
   googleDriveConnectionsTable,
+  googleDriveOAuthSettingsTable,
 } from "@workspace/db";
 import { ObjectStorageService } from "./objectStorage";
 
@@ -62,15 +63,57 @@ function decrypt(value: string) {
   return Buffer.concat([decipher.update(Buffer.from(encryptedPart, "base64url")), decipher.final()]).toString("utf8");
 }
 
-function getOAuthConfig(): GoogleOAuthConfig {
-  const raw = process.env.GOOGLE_OAUTH_CLIENT_JSON;
-  if (!raw) throw new Error("GOOGLE_OAUTH_CLIENT_JSON is not configured.");
-  const parsed = JSON.parse(raw) as { web?: GoogleOAuthConfig; installed?: GoogleOAuthConfig } & GoogleOAuthConfig;
+function parseOAuthConfig(raw: string): GoogleOAuthConfig {
+  let parsed: { web?: GoogleOAuthConfig; installed?: GoogleOAuthConfig } & GoogleOAuthConfig;
+  try {
+    parsed = JSON.parse(raw) as { web?: GoogleOAuthConfig; installed?: GoogleOAuthConfig } & GoogleOAuthConfig;
+  } catch {
+    throw new Error("Paste valid JSON downloaded from Google Cloud.");
+  }
   const config = parsed.web ?? parsed.installed ?? parsed;
   if (!config.client_id || !config.client_secret || !config.auth_uri || !config.token_uri) {
-    throw new Error("GOOGLE_OAUTH_CLIENT_JSON is missing required OAuth fields.");
+    throw new Error("The OAuth JSON must include client_id, client_secret, auth_uri, and token_uri.");
   }
   return config;
+}
+
+async function getOAuthConfig(): Promise<GoogleOAuthConfig> {
+  const [savedSettings] = await db.select({ clientJsonEncrypted: googleDriveOAuthSettingsTable.clientJsonEncrypted })
+    .from(googleDriveOAuthSettingsTable)
+    .where(eq(googleDriveOAuthSettingsTable.id, 1))
+    .limit(1);
+  if (savedSettings) return parseOAuthConfig(decrypt(savedSettings.clientJsonEncrypted));
+  const raw = process.env.GOOGLE_OAUTH_CLIENT_JSON;
+  if (!raw) throw new Error("Google OAuth client JSON has not been configured.");
+  return parseOAuthConfig(raw);
+}
+
+export async function saveGoogleDriveOAuthConfig(raw: string, userId: number) {
+  if (!raw.trim() || raw.length > 100_000) {
+    throw new Error("Paste the complete Google OAuth client JSON.");
+  }
+  const config = parseOAuthConfig(raw);
+  const normalized = JSON.stringify(config);
+  await db.insert(googleDriveOAuthSettingsTable).values({
+    id: 1,
+    clientJsonEncrypted: encrypt(normalized),
+    updatedByUserId: userId,
+    updatedAt: new Date(),
+  }).onDuplicateKeyUpdate({
+    set: {
+      clientJsonEncrypted: encrypt(normalized),
+      updatedByUserId: userId,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function hasGoogleDriveOAuthConfig() {
+  const [savedSettings] = await db.select({ id: googleDriveOAuthSettingsTable.id })
+    .from(googleDriveOAuthSettingsTable)
+    .where(eq(googleDriveOAuthSettingsTable.id, 1))
+    .limit(1);
+  return Boolean(savedSettings || process.env.GOOGLE_OAUTH_CLIENT_JSON);
 }
 
 export function getGoogleDriveRedirectUri(origin: string) {
@@ -78,8 +121,8 @@ export function getGoogleDriveRedirectUri(origin: string) {
     ?? new URL("/api/admin/google-drive/oauth/callback", origin).toString();
 }
 
-function createOAuthClient(redirectUri?: string) {
-  const config = getOAuthConfig();
+async function createOAuthClient(redirectUri?: string) {
+  const config = await getOAuthConfig();
   return new OAuth2Client(config.client_id, config.client_secret, redirectUri);
 }
 
@@ -111,8 +154,8 @@ export function verifyGoogleDriveState(state: string) {
   return payload;
 }
 
-export function createGoogleDriveAuthorizationUrl(userId: number, redirectUri: string) {
-  const client = createOAuthClient(redirectUri);
+export async function createGoogleDriveAuthorizationUrl(userId: number, redirectUri: string) {
+  const client = await createOAuthClient(redirectUri);
   const state = signState({ userId, redirectUri, expiresAt: Date.now() + 10 * 60 * 1000 });
   return client.generateAuthUrl({
     access_type: "offline",
@@ -129,19 +172,31 @@ async function getConnection() {
 
 export async function getGoogleDriveStatus() {
   const connection = await getConnection();
+  const oauthConfigured = await hasGoogleDriveOAuthConfig();
+  const [pendingDrawings] = await db.select({ count: sql<number>`count(*)` })
+    .from(drawingUploadsTable)
+    .where(sql`${drawingUploadsTable.filePath} like '/objects/%'`);
+  const [pendingGallery] = await db.select({ count: sql<number>`count(*)` })
+    .from(galleryMediaTable)
+    .where(sql`${galleryMediaTable.filePath} like '/objects/%'`);
+  const [pendingChat] = await db.select({ count: sql<number>`count(*)` })
+    .from(chatMessagesTable)
+    .where(sql`${chatMessagesTable.attachmentPath} like '/objects/%'`);
   return {
     provider: connection ? "google_drive" as const : "object_storage" as const,
     connected: Boolean(connection),
     accountEmail: connection?.accountEmail ?? null,
     displayName: connection?.displayName ?? null,
     rootFolderId: connection?.rootFolderId ?? null,
+    oauthConfigured,
+    pendingLocalFiles: Number(pendingDrawings.count) + Number(pendingGallery.count) + Number(pendingChat.count),
   };
 }
 
 async function getAuthorizedClient() {
   const connection = await getConnection();
   if (!connection) return null;
-  const client = createOAuthClient();
+  const client = await createOAuthClient();
   client.setCredentials({
     refresh_token: decrypt(connection.refreshTokenEncrypted),
     ...(connection.accessTokenEncrypted ? { access_token: decrypt(connection.accessTokenEncrypted) } : {}),
@@ -254,7 +309,7 @@ async function ensureConnectedRoot(accessToken: string, connection: Awaited<Retu
 }
 
 export async function completeGoogleDriveConnection(code: string, redirectUri: string, userId: number) {
-  const client = createOAuthClient(redirectUri);
+  const client = await createOAuthClient(redirectUri);
   const { tokens } = await client.getToken(code);
   if (!tokens.refresh_token) throw new Error("Google did not return a refresh token. Try connecting again.");
   client.setCredentials(tokens);
@@ -330,7 +385,9 @@ async function readLocalObject(filePath: string) {
   return body;
 }
 
-export async function migrateLocalFilesToGoogleDrive() {
+let migrationInProgress = false;
+
+async function migrateLocalFilesToGoogleDriveInternal() {
   const authorized = await getAuthorizedClient();
   if (!authorized) return { migrated: 0, failed: 0 };
   const objectStorage = new ObjectStorageService();
@@ -447,6 +504,16 @@ export async function migrateLocalFilesToGoogleDrive() {
   }
 
   return { migrated, failed };
+}
+
+export async function migrateLocalFilesToGoogleDrive() {
+  if (migrationInProgress) return { migrated: 0, failed: 0 };
+  migrationInProgress = true;
+  try {
+    return await migrateLocalFilesToGoogleDriveInternal();
+  } finally {
+    migrationInProgress = false;
+  }
 }
 
 async function ensureDrawingFolder(accessToken: string, rootFolderId: string, input: {

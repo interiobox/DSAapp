@@ -7,6 +7,7 @@ import {
   getGoogleDriveOAuthErrorMessage,
   getGoogleDriveRedirectUri,
   getGoogleDriveStatus,
+  saveGoogleDriveOAuthConfig,
   migrateLocalFilesToGoogleDrive,
   verifyGoogleDriveState,
 } from "../lib/googleDrive";
@@ -23,10 +24,21 @@ router.get("/admin/google-drive", async (_req, res): Promise<void> => {
   res.json(await getGoogleDriveStatus());
 });
 
-router.get("/admin/google-drive/oauth/start", (req, res): void => {
+router.get("/admin/google-drive/oauth/start", async (req, res): Promise<void> => {
   const user = requireCurrentUser(req);
   const redirectUri = getGoogleDriveRedirectUri(requestOrigin(req));
-  res.redirect(createGoogleDriveAuthorizationUrl(user.id, redirectUri));
+  res.redirect(await createGoogleDriveAuthorizationUrl(user.id, redirectUri));
+});
+
+router.post("/admin/google-drive/oauth-config", async (req, res): Promise<void> => {
+  const user = requireCurrentUser(req);
+  const raw = typeof req.body?.oauthJson === "string" ? req.body.oauthJson : "";
+  try {
+    await saveGoogleDriveOAuthConfig(raw, user.id);
+    res.json({ configured: true });
+  } catch (error) {
+    res.status(400).json({ error: getGoogleDriveOAuthErrorMessage(error) });
+  }
 });
 
 router.get("/admin/google-drive/oauth/callback", async (req, res): Promise<void> => {

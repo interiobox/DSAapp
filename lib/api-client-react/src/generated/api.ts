@@ -68,6 +68,8 @@ import type {
   GalleryMedia,
   GetMyAttendanceMonthParams,
   GetMyAttendanceParams,
+  GoogleDriveOAuthConfigInput,
+  GoogleDriveOAuthConfigStatus,
   GoogleDriveStatus,
   HealthStatus,
   ListAttendanceParams,
@@ -5622,6 +5624,77 @@ export function useAdminStartGoogleDriveOAuth<TData = Awaited<ReturnType<typeof 
 
 
 
+
+export const getAdminSaveGoogleDriveOAuthConfigUrl = () => {
+
+
+
+
+  return `/api/admin/google-drive/oauth-config`
+}
+
+/**
+ * @summary Save the Google OAuth client JSON for Drive authorization
+ */
+export const adminSaveGoogleDriveOAuthConfig = async (googleDriveOAuthConfigInput: GoogleDriveOAuthConfigInput, options?: Parameters<typeof customFetch>[1]): Promise<GoogleDriveOAuthConfigStatus> => {
+
+  return customFetch<GoogleDriveOAuthConfigStatus>(getAdminSaveGoogleDriveOAuthConfigUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(googleDriveOAuthConfigInput)
+  }
+);}
+
+
+
+
+
+export const getAdminSaveGoogleDriveOAuthConfigMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSaveGoogleDriveOAuthConfig>>, TError,{data: BodyType<GoogleDriveOAuthConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminSaveGoogleDriveOAuthConfig>>, TError,{data: BodyType<GoogleDriveOAuthConfigInput>}, TContext> => {
+
+const mutationKey = ['adminSaveGoogleDriveOAuthConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminSaveGoogleDriveOAuthConfig>>, {data: BodyType<GoogleDriveOAuthConfigInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminSaveGoogleDriveOAuthConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminSaveGoogleDriveOAuthConfigMutationResult = NonNullable<Awaited<ReturnType<typeof adminSaveGoogleDriveOAuthConfig>>>
+    export type AdminSaveGoogleDriveOAuthConfigMutationBody = BodyType<GoogleDriveOAuthConfigInput>
+    export type AdminSaveGoogleDriveOAuthConfigMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Save the Google OAuth client JSON for Drive authorization
+ */
+export const useAdminSaveGoogleDriveOAuthConfig = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSaveGoogleDriveOAuthConfig>>, TError,{data: BodyType<GoogleDriveOAuthConfigInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminSaveGoogleDriveOAuthConfig>>,
+        TError,
+        {data: BodyType<GoogleDriveOAuthConfigInput>},
+        TContext
+      > => {
+      return useMutation(getAdminSaveGoogleDriveOAuthConfigMutationOptions(options));
+    }
 
 export const getAdminCompleteGoogleDriveOAuthUrl = (params?: AdminCompleteGoogleDriveOAuthParams,) => {
   const normalizedParams = new URLSearchParams();

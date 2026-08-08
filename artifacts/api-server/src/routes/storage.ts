@@ -11,7 +11,7 @@ import { db, chatMessagesTable, drawingUploadsTable, drawingsTable, galleryMedia
 import { GetDrawingParams, RecordDrawingUploadResponse } from "@workspace/api-zod";
 import { addActivity } from "../lib/drawings";
 import { requireCurrentUser } from "../lib/portalAuth";
-import { getDriveFileId, getGoogleDriveStatus, isDriveFilePath, downloadDriveFile, uploadDrawingToGoogleDrive } from "../lib/googleDrive";
+import { getDriveFileId, getGoogleDriveStatus, isDriveFilePath, downloadDriveFile } from "../lib/googleDrive";
 
 import { ObjectPermission } from '../lib/objectAcl';
 import {
@@ -43,21 +43,18 @@ router.post(
     const fileName = decodeURIComponent(String(req.headers["x-file-name"] ?? "drawing-file"));
     const contentType = String(req.headers["x-file-content-type"] ?? "application/octet-stream");
     const sha256 = createHash("sha256").update(req.body).digest("hex");
-    const driveFile = await uploadDrawingToGoogleDrive({
-      projectName: drawing.projectName,
-        category: drawing.discipline,
-      drawingNumber: drawing.drawingNumber,
-      drawingTitle: drawing.title,
-      fileName,
-      contentType,
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    const uploadResponse = await fetch(uploadURL, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
       body: req.body,
     });
-    if (!driveFile) {
-      res.status(409).json({ error: "Google Drive is not connected. Use the standard upload flow or connect Drive in Admin." });
+    if (!uploadResponse.ok) {
+      res.status(502).json({ error: "The drawing file could not be saved to workspace storage." });
       return;
     }
     const user = requireCurrentUser(req);
-    const filePath = `/drive/files/${driveFile.id}`;
+    const filePath = objectStorageService.normalizeObjectEntityPath(uploadURL);
     const [{ id }] = await db.insert(drawingUploadsTable).values({
       drawingId: drawing.id,
       filePath,
@@ -75,7 +72,7 @@ router.post(
       attachmentContentType: contentType,
       updatedAt: new Date(),
     }).where(eq(drawingsTable.id, drawing.id));
-    await addActivity("drawing_uploaded", `${fileName} uploaded to Google Drive by ${user.name} to ${drawing.title}`, drawing.id, String(user.id), user.name);
+    await addActivity("drawing_uploaded", `${fileName} uploaded by ${user.name} to ${drawing.title}; Drive sync is queued automatically`, drawing.id, String(user.id), user.name);
     res.status(201).json(RecordDrawingUploadResponse.parse(upload));
   },
 );

@@ -16,4 +16,8 @@ export interface GoogleDriveStatus {
   displayName: string | null;
   /** @nullable */
   rootFolderId: string | null;
+  /** Number of attachments still stored in workspace storage and waiting for Drive sync */
+  pendingLocalFiles: number;
+  /** Whether a Google OAuth client configuration is available */
+  oauthConfigured: boolean;
 }

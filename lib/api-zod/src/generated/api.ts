@@ -1636,7 +1636,9 @@ export const AdminGetGoogleDriveStatusResponse = zod.object({
   "connected": zod.boolean(),
   "accountEmail": zod.string().nullable(),
   "displayName": zod.string().nullable(),
-  "rootFolderId": zod.string().nullable()
+  "rootFolderId": zod.string().nullable(),
+  "pendingLocalFiles": zod.number().describe('Number of attachments still stored in workspace storage and waiting for Drive sync'),
+  "oauthConfigured": zod.boolean().describe('Whether a Google OAuth client configuration is available')
 })
 
 
@@ -1650,6 +1652,22 @@ export const AdminDisconnectGoogleDriveResponse = zod.void()
  * @summary Start Google Drive authorization
  */
 export const AdminStartGoogleDriveOAuthResponse = zod.void()
+
+
+/**
+ * @summary Save the Google OAuth client JSON for Drive authorization
+ */
+export const adminSaveGoogleDriveOAuthConfigBodyOauthJsonMax = 100000;
+
+
+
+export const AdminSaveGoogleDriveOAuthConfigBody = zod.object({
+  "oauthJson": zod.string().min(1).max(adminSaveGoogleDriveOAuthConfigBodyOauthJsonMax)
+})
+
+export const AdminSaveGoogleDriveOAuthConfigResponse = zod.object({
+  "configured": zod.boolean()
+})
 
 
 /**
@@ -2169,7 +2187,9 @@ export const GetStorageStatusResponse = zod.object({
   "connected": zod.boolean(),
   "accountEmail": zod.string().nullable(),
   "displayName": zod.string().nullable(),
-  "rootFolderId": zod.string().nullable()
+  "rootFolderId": zod.string().nullable(),
+  "pendingLocalFiles": zod.number().describe('Number of attachments still stored in workspace storage and waiting for Drive sync'),
+  "oauthConfigured": zod.boolean().describe('Whether a Google OAuth client configuration is available')
 })
 
 

@@ -766,6 +766,22 @@ export interface GoogleDriveStatus {
   displayName: string | null;
   /** @nullable */
   rootFolderId: string | null;
+  /** Number of attachments still stored in workspace storage and waiting for Drive sync */
+  pendingLocalFiles: number;
+  /** Whether a Google OAuth client configuration is available */
+  oauthConfigured: boolean;
+}
+
+export interface GoogleDriveOAuthConfigInput {
+  /**
+     * @minLength 1
+     * @maxLength 100000
+     */
+  oauthJson: string;
+}
+
+export interface GoogleDriveOAuthConfigStatus {
+  configured: boolean;
 }
 
 export type ChatChannelChannelType = typeof ChatChannelChannelType[keyof typeof ChatChannelChannelType];

@@ -1398,6 +1398,30 @@ paths:
       responses:
         "302":
           description: Redirect to Google authorization
+  /admin/google-drive/oauth-config:
+    post:
+      operationId: adminSaveGoogleDriveOAuthConfig
+      tags: [admin]
+      summary: Save the Google OAuth client JSON for Drive authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleDriveOAuthConfigInput"
+      responses:
+        "200":
+          description: OAuth client configuration saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleDriveOAuthConfigStatus"
+        "400":
+          description: Invalid OAuth client JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /admin/google-drive/oauth/callback:
     get:
       operationId: adminCompleteGoogleDriveOAuth
@@ -2931,7 +2955,27 @@ components:
           type: ["string", "null"]
         rootFolderId:
           type: ["string", "null"]
-      required: [provider, connected, accountEmail, displayName, rootFolderId]
+        pendingLocalFiles:
+          type: number
+          description: Number of attachments still stored in workspace storage and waiting for Drive sync
+        oauthConfigured:
+          type: boolean
+          description: Whether a Google OAuth client configuration is available
+      required: [provider, connected, accountEmail, displayName, rootFolderId, pendingLocalFiles, oauthConfigured]
+    GoogleDriveOAuthConfigInput:
+      type: object
+      properties:
+        oauthJson:
+          type: string
+          minLength: 1
+          maxLength: 100000
+      required: [oauthJson]
+    GoogleDriveOAuthConfigStatus:
+      type: object
+      properties:
+        configured:
+          type: boolean
+      required: [configured]
     ChatChannel:
       type: object
       properties:

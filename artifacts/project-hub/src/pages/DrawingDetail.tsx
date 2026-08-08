@@ -3,7 +3,7 @@ import { useRoute, Link, useLocation } from "wouter"
 import { useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, CheckCircle, Clock, Send, Archive, Trash2, Calendar, FileText, Upload, Download, Loader2, History, MessageSquare, Pencil, FolderKanban, ShieldCheck, Eye } from "lucide-react"
 
-import { useGetDrawing, useUpdateDrawing, useDeleteDrawing, useListProjects, useListCategories, useGetStorageStatus, useListDrawingActivity, usePreflightDrawingUpload, getGetDrawingQueryKey, getListDrawingActivityQueryKey, getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react"
+import { useGetDrawing, useUpdateDrawing, useDeleteDrawing, useListProjects, useListCategories, useListDrawingActivity, usePreflightDrawingUpload, getGetDrawingQueryKey, getListDrawingActivityQueryKey, getListDrawingsQueryKey, getGetDashboardSummaryQueryKey, getListActivityQueryKey, getListNotificationsQueryKey } from "@workspace/api-client-react"
 import type { Activity } from "@workspace/api-client-react"
 import type { DrawingStatus } from "@workspace/api-client-react"
 
@@ -82,7 +82,6 @@ export default function DrawingDetail() {
   const currentUserName = user?.name || user?.username || ""
   const isAdmin = user?.role === "admin"
   const { data: categories } = useListCategories()
-  const { data: storageStatus } = useGetStorageStatus()
   const { data: auditActivity, isLoading: auditLoading } = useListDrawingActivity(id, {
     query: { enabled: id > 0, queryKey: getListDrawingActivityQueryKey(id) },
   })
@@ -223,28 +222,6 @@ export default function DrawingDetail() {
         ? "A matching file was previously moved to the recycle bin, so this upload will be recorded as a new active version."
         : undefined
 
-      if (storageStatus?.connected) {
-        const driveResponse = await fetch(`/api/storage/drawings/${id}/drive-upload`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "X-File-Name": encodeURIComponent(file.name),
-            "X-File-Content-Type": file.type || "application/octet-stream",
-          },
-          body: file,
-        })
-        if (!driveResponse.ok) {
-          const errorBody = await driveResponse.json().catch(() => ({}))
-          throw new Error(errorBody.error || "The drawing file could not be uploaded to Google Drive")
-        }
-        await loadUploads()
-        queryClient.invalidateQueries({ queryKey: getGetDrawingQueryKey(id) })
-        queryClient.invalidateQueries({ queryKey: getListDrawingsQueryKey() })
-        queryClient.invalidateQueries({ queryKey: getListActivityQueryKey() })
-         toast({ title: "Drawing file uploaded to Google Drive", description: recycledDescription ?? `${file.name} is organized under its project and drawing folders.` })
-        return
-      }
-
       const uploadRequest = await fetch("/api/storage/uploads/request-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -288,7 +265,7 @@ export default function DrawingDetail() {
       queryClient.invalidateQueries({ queryKey: getGetDrawingQueryKey(id) })
       queryClient.invalidateQueries({ queryKey: getListDrawingsQueryKey() })
       queryClient.invalidateQueries({ queryKey: getListActivityQueryKey() })
-        toast({ title: "Drawing file uploaded", description: recycledDescription ?? `${file.name} recorded under ${currentUserName}.` })
+         toast({ title: "Drawing file uploaded", description: recycledDescription ?? `${file.name} is saved safely. If Google Drive is connected, it will be organized there automatically.` })
     } catch (error) {
       toast({
         title: "Upload failed",
