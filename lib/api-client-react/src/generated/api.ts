@@ -5482,7 +5482,7 @@ export const getAdminDisconnectGoogleDriveUrl = () => {
 
 
 
-  return `/api/admin/google-drive`
+  return `/api/admin/google-drive/disconnect`
 }
 
 /**

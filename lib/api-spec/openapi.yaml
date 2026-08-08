@@ -1383,6 +1383,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GoogleDriveStatus"
+  /admin/google-drive/disconnect:
     post:
       operationId: adminDisconnectGoogleDrive
       tags: [admin]
