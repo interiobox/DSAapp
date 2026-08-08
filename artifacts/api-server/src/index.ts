@@ -1,6 +1,5 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { migrateLocalFilesToGoogleDrive } from "./lib/googleDrive";
 import { ensurePortalSeed } from "./lib/portalAuth";
 import { purgeExpiredRecycleBin } from "./lib/recycleBin";
 
@@ -28,19 +27,6 @@ void ensurePortalSeed().then(async () => {
   }
 
   logger.info({ port }, "Server listening");
-  const syncDrive = () => {
-    void migrateLocalFilesToGoogleDrive()
-      .then(({ migrated, failed }) => {
-        if (migrated > 0 || failed > 0) {
-          logger.info({ migrated, failed }, "Local attachment sync completed");
-        }
-      })
-      .catch((error: unknown) => {
-        logger.warn({ err: error }, "Local attachment sync is waiting for Google Drive");
-      });
-  };
-  syncDrive();
-  setInterval(syncDrive, 30_000).unref();
   });
 }).catch((error) => {
   logger.error({ err: error }, "Unable to initialize portal accounts");
