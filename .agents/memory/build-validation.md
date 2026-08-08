@@ -14,3 +14,9 @@ For a root web artifact, its declared service port must match the managed workfl
 **Why:** A stale root artifact port combined with a manually configured duplicate frontend workflow caused the app to build successfully but return a preview 502.
 
 **How to apply:** Register the canonical root artifact, keep its service metadata aligned with its workflow, and remove duplicate manual frontend workflows before restarting.
+
+The project-hub production build should use Vite's `command` to gate development-only plugins and filter only Rollup's `SOURCEMAP_ERROR` warning from third-party UI transforms.
+
+**Why:** `NODE_ENV` was not set by the package build command, which bundled development tooling and produced recurring sourcemap diagnostics despite successful builds.
+
+**How to apply:** Keep the runtime overlay/cartographer on `serve` only, preserve all other Rollup warnings, and validate with a fresh `pnpm install --frozen-lockfile && pnpm run build`.
