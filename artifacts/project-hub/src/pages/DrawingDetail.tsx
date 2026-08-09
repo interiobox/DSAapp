@@ -265,7 +265,7 @@ export default function DrawingDetail() {
       queryClient.invalidateQueries({ queryKey: getGetDrawingQueryKey(id) })
       queryClient.invalidateQueries({ queryKey: getListDrawingsQueryKey() })
       queryClient.invalidateQueries({ queryKey: getListActivityQueryKey() })
-         toast({ title: "Drawing file uploaded", description: recycledDescription ?? `${file.name} is saved safely. If Google Drive is connected, it will be organized there automatically.` })
+         toast({ title: "Drawing file uploaded", description: recycledDescription ?? `${file.name} is saved safely. If Google Drive is connected, it is stored in the shared Drawing Library folder.` })
     } catch (error) {
       toast({
         title: "Upload failed",

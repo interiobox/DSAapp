@@ -34,7 +34,13 @@ import { addActivity, getIdParam, listDrawingRows, toDateString } from "../lib/d
 import { ObjectStorageService } from "../lib/objectStorage";
 import { requireCurrentUser } from "../lib/portalAuth";
 import { notifyDrawingAssigneeById, notifyMentions, safelyNotify } from "../lib/notifications";
-import { getDriveFileId, isDriveFilePath, moveDriveFileToDrawingFolder, normalizeDriveCategory } from "../lib/googleDrive";
+import {
+  getDriveFileId,
+  isDriveFilePath,
+  moveDriveFileToDrawingFolder,
+  normalizeDriveCategory,
+  syncDrawingUploadToGoogleDrive,
+} from "../lib/googleDrive";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -410,15 +416,46 @@ router.post("/drawings/:id/uploads", async (req, res): Promise<void> => {
     uploadedBy: currentUserName(req),
   }).$returningId();
   const [upload] = await db.select().from(drawingUploadsTable).where(eq(drawingUploadsTable.id, id)).limit(1);
+  let storedFilePath = upload.filePath;
+  if (upload.filePath.startsWith("/objects/")) {
+    try {
+      const synced = await syncDrawingUploadToGoogleDrive({
+        filePath: upload.filePath,
+        projectName: drawing.projectName,
+        category: drawing.discipline,
+        drawingNumber: drawing.drawingNumber,
+        drawingTitle: drawing.title,
+        fileName: upload.fileName,
+        contentType: upload.contentType,
+      });
+      if (synced.synced) {
+        await db.update(drawingUploadsTable).set({ filePath: synced.filePath }).where(eq(drawingUploadsTable.id, upload.id));
+        storedFilePath = synced.filePath;
+        try {
+          await objectStorageService.deleteObjectEntity(upload.filePath);
+        } catch (error) {
+          req.log.warn({ err: error, uploadId: upload.id }, "Google Drive sync succeeded but workspace cleanup failed");
+        }
+      }
+    } catch (error) {
+      req.log.error({ err: error, uploadId: upload.id }, "Google Drive upload failed; keeping file in workspace storage");
+    }
+  }
   await db.update(drawingsTable).set({
-    attachmentPath: upload.filePath,
+    attachmentPath: storedFilePath,
     attachmentName: upload.fileName,
     attachmentSize: upload.fileSize,
     attachmentContentType: upload.contentType,
     updatedAt: new Date(),
   }).where(eq(drawingsTable.id, drawing.id));
-  await addActivity("drawing_uploaded", `${upload.fileName} uploaded by ${upload.uploadedBy} to ${drawing.title}`, drawing.id, currentUserId(req), currentUserName(req));
-  res.status(201).json(RecordDrawingUploadResponse.parse(upload));
+  await addActivity(
+    "drawing_uploaded",
+    `${upload.fileName} uploaded by ${upload.uploadedBy} to ${drawing.title}${storedFilePath.startsWith("/drive/files/") ? " and synced to Google Drive" : ""}`,
+    drawing.id,
+    currentUserId(req),
+    currentUserName(req),
+  );
+  res.status(201).json(RecordDrawingUploadResponse.parse({ ...upload, filePath: storedFilePath }));
 });
 
 router.delete("/drawings/:id/uploads/:uploadId", async (req, res): Promise<void> => {

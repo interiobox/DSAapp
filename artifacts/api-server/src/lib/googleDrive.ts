@@ -21,6 +21,8 @@ const ROOT_FOLDER_NAME = "Drawing Library";
 const DELETED_DRAWINGS_FOLDER_NAME = "Deleted Drawings";
 const UNCATEGORIZED_FOLDER_NAME = "Uncategorized";
 const CHAT_ATTACHMENTS_FOLDER_NAME = "Chat Attachments";
+const folderCreationLocks = new Map<string, Promise<string>>();
+let rootFolderCreationLock: Promise<string> | null = null;
 
 type GoogleOAuthConfig = {
   client_id: string;
@@ -233,7 +235,12 @@ function escapeDriveQueryValue(value: string) {
 
 async function findFolder(accessToken: string, parentId: string, name: string) {
   const query = `'${escapeDriveQueryValue(parentId)}' in parents and name = '${escapeDriveQueryValue(name)}' and mimeType = '${DRIVE_FOLDER_MIME}' and trashed = false`;
-  const params = new URLSearchParams({ q: query, fields: "files(id,name)", pageSize: "1" });
+  const params = new URLSearchParams({
+    q: query,
+    fields: "files(id,name,createdTime)",
+    orderBy: "createdTime asc",
+    pageSize: "100",
+  });
   const result = await driveJson<{ files?: DriveFile[] }>(accessToken, `${DRIVE_API}/files?${params}`);
   return result.files?.[0]?.id ?? null;
 }
@@ -257,7 +264,24 @@ async function createFolder(accessToken: string, parentId: string, name: string)
 }
 
 async function ensureFolder(accessToken: string, parentId: string, name: string) {
-  return await findFolder(accessToken, parentId, name) ?? await createFolder(accessToken, parentId, name);
+  const key = `${parentId}\u0000${name}`;
+  const existing = await findFolder(accessToken, parentId, name);
+  if (existing) return existing;
+
+  const pending = folderCreationLocks.get(key);
+  if (pending) return pending;
+
+  const creation = (async () => {
+    // A second lookup prevents duplicate folders when two uploads reach this
+    // process at the same time.
+    return await findFolder(accessToken, parentId, name) ?? await createFolder(accessToken, parentId, name);
+  })();
+  folderCreationLocks.set(key, creation);
+  try {
+    return await creation;
+  } finally {
+    if (folderCreationLocks.get(key) === creation) folderCreationLocks.delete(key);
+  }
 }
 
 async function uploadBufferToFolder(accessToken: string, folderId: string, input: {
@@ -283,15 +307,35 @@ export function normalizeDriveCategory(category?: string | null) {
 
 async function ensureRootFolders(accessToken: string) {
   const existingConnection = await getConnection();
-  let rootFolderId: string | undefined = existingConnection?.rootFolderId ?? undefined;
-  if (!rootFolderId || !(await folderExists(accessToken, rootFolderId))) {
-    rootFolderId = (await findFolder(accessToken, "root", ROOT_FOLDER_NAME)) ?? undefined;
+  if (existingConnection?.rootFolderId && await folderExists(accessToken, existingConnection.rootFolderId)) {
+    await ensureFolder(accessToken, existingConnection.rootFolderId, DELETED_DRAWINGS_FOLDER_NAME);
+    return { rootFolderId: existingConnection.rootFolderId };
   }
-  if (!rootFolderId) {
-    rootFolderId = await createFolder(accessToken, "root", ROOT_FOLDER_NAME);
+
+  if (rootFolderCreationLock) {
+    return { rootFolderId: await rootFolderCreationLock };
   }
-  await ensureFolder(accessToken, rootFolderId, DELETED_DRAWINGS_FOLDER_NAME);
-  return { rootFolderId };
+
+  const creation = (async () => {
+    // Re-check after acquiring the in-process lock. This keeps parallel first
+    // uploads from creating multiple "Drawing Library" roots.
+    const connected = await getConnection();
+    let rootFolderId: string | undefined = connected?.rootFolderId ?? undefined;
+    if (!rootFolderId || !(await folderExists(accessToken, rootFolderId))) {
+      rootFolderId = (await findFolder(accessToken, "root", ROOT_FOLDER_NAME)) ?? undefined;
+    }
+    if (!rootFolderId) {
+      rootFolderId = await createFolder(accessToken, "root", ROOT_FOLDER_NAME);
+    }
+    await ensureFolder(accessToken, rootFolderId, DELETED_DRAWINGS_FOLDER_NAME);
+    return rootFolderId;
+  })();
+  rootFolderCreationLock = creation;
+  try {
+    return { rootFolderId: await creation };
+  } finally {
+    if (rootFolderCreationLock === creation) rootFolderCreationLock = null;
+  }
 }
 
 async function ensureConnectedRoot(accessToken: string, connection: Awaited<ReturnType<typeof getConnection>>) {
@@ -358,6 +402,35 @@ export async function uploadDrawingToGoogleDrive(input: {
   const categoryFolder = await ensureFolder(authorized.accessToken, projectFolder, normalizeDriveCategory(input.category));
   const drawingFolder = await ensureFolder(authorized.accessToken, categoryFolder, `${input.drawingNumber} - ${input.drawingTitle}`);
   return await uploadBufferToFolder(authorized.accessToken, drawingFolder, input);
+}
+
+export async function syncDrawingUploadToGoogleDrive(input: {
+  filePath: string;
+  projectName: string;
+  category: string;
+  drawingNumber: string;
+  drawingTitle: string;
+  fileName: string;
+  contentType: string;
+}) {
+  const authorized = await getAuthorizedClient();
+  if (!authorized) return { filePath: input.filePath, synced: false };
+
+  const body = await readLocalObject(input.filePath);
+  const rootFolderId = await ensureConnectedRoot(authorized.accessToken, authorized.connection);
+  const projectFolder = await ensureFolder(authorized.accessToken, rootFolderId, input.projectName);
+  const categoryFolder = await ensureFolder(authorized.accessToken, projectFolder, normalizeDriveCategory(input.category));
+  const drawingFolder = await ensureFolder(
+    authorized.accessToken,
+    categoryFolder,
+    `${input.drawingNumber} - ${input.drawingTitle}`,
+  );
+  const driveFile = await uploadBufferToFolder(authorized.accessToken, drawingFolder, {
+    fileName: input.fileName,
+    contentType: input.contentType,
+    body,
+  });
+  return { filePath: `/drive/files/${driveFile.id}`, synced: true };
 }
 
 export async function uploadGalleryMediaToGoogleDrive(input: {
