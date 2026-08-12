@@ -27,6 +27,7 @@ An architectural drawing management app for Design Sense Architects, maintaining
 - `artifacts/api-server/src/routes/drawings.ts` — drawing CRUD and activity routes
 - `artifacts/project-hub/src/pages/` — drawing library and drawing detail/review screens
 - `artifacts/project-hub/src/index.css` — blueprint-inspired visual theme
+- `scripts/src/build-milesweb.ts` — creates the standalone `milesweb-deploy` cPanel upload folder
 
 ## Architecture decisions
 
@@ -34,6 +35,8 @@ An architectural drawing management app for Design Sense Architects, maintaining
 - Calendar-only due and issue dates are stored as MySQL `date` values to avoid timezone shifts.
 - API writes re-read inserted or updated rows because MySQL does not support PostgreSQL-style `RETURNING`.
 - Status transitions are explicit actions from drawing detail, with dashboard and activity caches refreshed after mutations.
+- The production frontend and API can run from one Node.js process, with the frontend mounted through `FRONTEND_DIST_DIR`.
+- MilesWeb deployment is packaged separately because cPanel's Node.js app does not resolve this workspace's `workspace:*` dependencies.
 
 ## Product
 
@@ -51,6 +54,9 @@ An architectural drawing management app for Design Sense Architects, maintaining
 ## Gotchas
 
 - Keep `MYSQL_URL` in Replit Secrets; never put the connection string in source files.
+- Run `pnpm --filter @workspace/scripts run build:milesweb` to regenerate the standalone upload folder.
+- MilesWeb must provide a MySQL database and the Node.js app must define `MYSQL_URL`, `SESSION_SECRET`, and any configured Google Cloud Storage variables.
+- The API refuses to start without `MYSQL_URL`; this is intentional rather than a silent fallback.
 
 ## Pointers
 
