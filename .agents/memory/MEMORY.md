@@ -1,4 +1,3 @@
-- [MilesWeb cPanel deployment](milesweb-deployment.md) — use a standalone same-origin Node bundle for cPanel instead of uploading the pnpm workspace.
 - [Drawing register product](drawing-register.md) — preserve the architectural drawing vocabulary, metadata, and review/issue workflow.
 - [Recycle-bin retention](drawing-register.md) — recyclable records use their own deletedAt timestamp; stored files are removed only after expiry.
 - [Focused navigation](focused-navigation.md) — keep daily register work primary; expose supporting tools through one grouped secondary menu.

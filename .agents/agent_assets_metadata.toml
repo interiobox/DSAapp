@@ -1,9 +1,0 @@
-uploads = []
-generated = []
-
-[[outputs]]
-id = "i8tvccNvBYmO91NgbJEBQ"
-uri = "file://milesweb-deploy.zip"
-type = "unspecified"
-title = "MilesWeb cPanel deployment bundle"
-description = "Standalone production bundle with the frontend, Express API, startup file, runtime dependencies, database schema, and cPanel instructions."
